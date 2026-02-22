@@ -19,7 +19,7 @@
 
 ## 📋 Sobre
 
-Addon para o sistema [MK-AUTH](https://mk-auth.com.br) que permite criar, gerenciar e monitorar túneis **WireGuard VPN** diretamente pelo painel web. Ideal para provedores de internet (ISPs) que utilizam MK-AUTH com Mikrotik e precisam de uma solução VPN moderna, rápida e segura.
+Addon para o sistema [MK-AUTH](https://mk-auth.com.br) que permite criar, gerenciar e monitorar túneis **WireGuard VPN** diretamente pelo painel web. Ideal para provedores de internet (ISPs) que utilizam MK-AUTH hospedado/configurado por conta própria em uma VPS (cloud) e precisam de uma solução VPN moderna, rápida e segura.
 
 ## 💡 Por que WireGuard?
 
@@ -54,7 +54,36 @@ Apesar do WireGuard estar nativo tanto no kernel Linux quanto no RouterOS, o **M
 
 ## 🏗️ Arquitetura
 
-┌──────────────────────────────────────────────────────┐ │ MK-AUTH (Painel Web) │ │ │ │ addon_wireguard.js ──► /addons/wireguard/index.php │ │ │ │ │ wg_actions_post.php │ │ │ │ └──────────────────────────────────┼────────────────────┘ │ Unix Socket │ /run/wgmkauth.sock ▼ ┌─────────────────┐ │ wg-mkauthd │ │ (daemon Go) │ └────────┬────────┘ │ ┌────────▼────────┐ │ wireguard-tools │ │ wg · wg-quick │ └────────┬────────┘ │ ┌────────▼────────┐ │ WireGuard │ │ (kernel) │ └─────────────────┘
+```text
+┌──────────────────────────────────────────────────────────┐
+│                  MK-AUTH (Painel Web)                     │
+│                                                          │
+│  addon_wireguard.js ──► /addons/wireguard/index.php      │
+│                              │                           │
+│                     wg_actions_post.php                   │
+│                              │                           │
+└──────────────────────────────┼───────────────────────────┘
+                               │
+                        Unix Socket
+                    /run/wgmkauth.sock
+                               │
+                               ▼
+                     ┌─────────────────┐
+                     │   wg-mkauthd    │
+                     │  (daemon Go)    │
+                     └────────┬────────┘
+                              │
+                     ┌────────▼────────┐
+                     │ wireguard-tools │
+                     │  wg · wg-quick  │
+                     └────────┬────────┘
+                              │
+                     ┌────────▼────────┐
+                     │    WireGuard    │
+                     │    (kernel)     │
+                     └─────────────────┘
+
+---
 
 
 ## 📦 Componentes

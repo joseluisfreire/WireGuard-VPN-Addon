@@ -1,0 +1,9 @@
+{
+  "name": "WireGuard",
+  "description": "Integração Mk-Auth + wireguard-tools para criar peers WireGuard por ramal Mikrotik.",
+  "version": "0.1.0",
+  "author": "José Luis",
+  "menu": "Infraestrutura",
+  "perm": "admin"
+}
+

@@ -56,11 +56,11 @@ Apesar do WireGuard estar nativo tanto no kernel Linux quanto no RouterOS, o **M
 
 ```text
 ┌──────────────────────────────────────────────────────────┐
-│                  MK-AUTH (Painel Web)                     │
+│                  MK-AUTH (Painel Web)                    │
 │                                                          │
 │  addon_wireguard.js ──► /addons/wireguard/index.php      │
 │                              │                           │
-│                     wg_actions_post.php                   │
+│                     wg_actions_post.php                  │
 │                              │                           │
 └──────────────────────────────┼───────────────────────────┘
                                │
@@ -83,7 +83,7 @@ Apesar do WireGuard estar nativo tanto no kernel Linux quanto no RouterOS, o **M
                      │    (kernel)     │
                      └─────────────────┘
 
----
+```
 
 
 ## 📦 Componentes

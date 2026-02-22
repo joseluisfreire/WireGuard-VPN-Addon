@@ -98,7 +98,8 @@ Apesar do WireGuard estar nativo tanto no kernel Linux quanto no RouterOS, o **M
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/joseluisfreire/WireGuard-VPN-Addon/main/bootstrap.sh | bash
-⚠️ Requisitos: MK-AUTH 24.03+ · Kernel com suporte WireGuard (5.6+ ou XanMod 6.12)
+```
+⚠️ Requisitos: MK-AUTH 25.05+ · Kernel com suporte WireGuard (5.6+ ou XanMod 6.12)
 
 O que o instalador faz:
 Detecta a arquitetura do sistema (amd64/arm64)
@@ -108,51 +109,60 @@ Copia os arquivos do addon para /opt/mk-auth/admin/addons/
 Cria o symlink addons.class.php
 Configura o serviço SysVinit wg-mkauthd
 Inicia o daemon e valida a instalação
-🔧 Instalação Manual
-Clique para expandir
-1. Clonar o repositório
 
+```markdown
+## 🔧 Instalação Manual
+
+<details>
+<summary>Clique para expandir</summary>
+
+### 1. Clonar o repositório
+
+```bash
 cd /tmp
 git clone https://github.com/joseluisfreire/WireGuard-VPN-Addon.git
 cd WireGuard-VPN-Addon
+```
 
 2. Copiar arquivos do addon
-bash
-
-
+```bash
 cp addon_wireguard.js /opt/mk-auth/admin/addons/
 cp -r wireguard/ /opt/mk-auth/admin/addons/
 ln -sf /opt/mk-auth/include/addons.inc.hhvm /opt/mk-auth/admin/addons/wireguard/addons.class.php
 chown -R www-data:root /opt/mk-auth/admin/addons/wireguard/
+```
 
 3. Instalar wireguard-tools
-bash
-
-
+```bash
 curl -fsSL -o /usr/local/bin/wg \
   https://github.com/joseluisfreire/wireguard-tools-static/releases/latest/download/wg
 curl -fsSL -o /usr/local/bin/wg-quick \
   https://github.com/joseluisfreire/wireguard-tools-static/releases/latest/download/wg-quick
 chmod +x /usr/local/bin/wg /usr/local/bin/wg-quick
+```
+
 4. Instalar wg-mkauthd
-bash
-
-
+```bash
 curl -fsSL -o /usr/local/bin/wg-mkauthd \
   https://github.com/joseluisfreire/wg-mkauthd/releases/latest/download/wg-mkauthd
 chmod +x /usr/local/bin/wg-mkauthd
+```
+
 5. Configurar e iniciar o serviço
-bash
-
-
+```bash
 # Iniciar o daemon
 service wg-mkauthd start
-
+```
 # Verificar status
+```bash
 service wg-mkauthd status
+```
 
 # Parar o daemon
+```bash
 service wg-mkauthd stop
+```
+
 🗂️ Estrutura de Arquivos
 
 
@@ -169,7 +179,9 @@ service wg-mkauthd stop
 
 /usr/local/bin/
 ├── wg                              # WireGuard CLI (binário estático)
-├── wg-quick                        # Helper para interfaces WireGuard (estático)
+└── wg-quick                        # Helper para interfaces WireGuard (estático)
+
+/usr/local/sbin/
 └── wg-mkauthd                      # Daemon Go (binário estático)
 
 🛡️ Segurança
@@ -195,7 +207,7 @@ WireGuard vs PPTP — Por que migrar
 | Auditabilidade | Fácil (código enxuto) | Praticamente impossível |
 
 🐛 Debug / Logs
-bash
+```bash
 
 
 # Status do daemon
@@ -205,16 +217,18 @@ service wg-mkauthd status
 tail -f /var/log/syslog | grep wg-mkauthd
 
 # Testar socket manualmente
-echo '{"action":"server_status"}' | socat - UNIX-CONNECT:/run/wgmkauth.sock
+echo '{"action":"status"}' | socat - UNIX-CONNECT:/run/wgmkauth.sock
 
 # Status da interface WireGuard
 wg show
+```
 🤝 Contribuição
 Fork este repositório
 Crie uma branch: git checkout -b minha-feature
 Commit: git commit -m "feat: minha feature"
 Push: git push origin minha-feature
 Abra um Pull Request
+
 📄 Licença
 Este projeto está sob a licença MIT [blocked].
 

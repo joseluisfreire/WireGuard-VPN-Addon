@@ -109,6 +109,7 @@ Copia os arquivos do addon para /opt/mk-auth/admin/addons/
 Cria o symlink addons.class.php
 Configura o serviço SysVinit wg-mkauthd
 Inicia o daemon e valida a instalação
+---
 
 ```markdown
 ## 🔧 Instalação Manual
@@ -163,9 +164,13 @@ service wg-mkauthd status
 service wg-mkauthd stop
 ```
 
+</details>
+---
+
+
 🗂️ Estrutura de Arquivos
 
-
+```text
 /opt/mk-auth/admin/addons/
 ├── addon_wireguard.js              # Loader — registra o addon no menu do MK-AUTH
 └── wireguard/
@@ -183,6 +188,7 @@ service wg-mkauthd stop
 
 /usr/local/sbin/
 └── wg-mkauthd                      # Daemon Go (binário estático)
+```
 
 🛡️ Segurança
 

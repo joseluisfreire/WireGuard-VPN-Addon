@@ -123,7 +123,7 @@ Inicia o daemon e valida a instalação
 cd /tmp
 git clone https://github.com/joseluisfreire/WireGuard-VPN-Addon.git
 cd WireGuard-VPN-Addon
-```
+
 
 2. Copiar arquivos do addon
 ```bash

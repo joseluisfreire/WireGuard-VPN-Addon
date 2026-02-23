@@ -109,68 +109,49 @@ Copia os arquivos do addon para /opt/mk-auth/admin/addons/
 Cria o symlink addons.class.php
 Configura o serviço SysVinit wg-mkauthd
 Inicia o daemon e valida a instalação
----
-
-```markdown
-## 🔧 Instalação Manual
 
 <details>
-<summary>Clique para expandir</summary>
+<summary><strong>🔧 Instalação Manual</strong></summary>
+<br>
 
-### 1. Clonar o repositório
+**1. Clonar o repositório**
 
-```bash
-cd /tmp
-git clone https://github.com/joseluisfreire/WireGuard-VPN-Addon.git
-cd WireGuard-VPN-Addon
+    cd /tmp
+    git clone https://github.com/joseluisfreire/WireGuard-VPN-Addon.git
+    cd WireGuard-VPN-Addon
 
+**2. Copiar arquivos do addon**
 
-2. Copiar arquivos do addon
-```bash
-cp addon_wireguard.js /opt/mk-auth/admin/addons/
-cp -r wireguard/ /opt/mk-auth/admin/addons/
-ln -sf /opt/mk-auth/include/addons.inc.hhvm /opt/mk-auth/admin/addons/wireguard/addons.class.php
-chown -R www-data:root /opt/mk-auth/admin/addons/wireguard/
-```
+    cp addon_wireguard.js /opt/mk-auth/admin/addons/
+    cp -r wireguard/ /opt/mk-auth/admin/addons/
+    ln -sf /opt/mk-auth/include/addons.inc.hhvm /opt/mk-auth/admin/addons/wireguard/addons.class.php
+    chown -R www-data:root /opt/mk-auth/admin/addons/wireguard/
 
-3. Instalar wireguard-tools
-```bash
-curl -fsSL -o /usr/local/bin/wg \
-  https://github.com/joseluisfreire/wireguard-tools-static/releases/latest/download/wg
-curl -fsSL -o /usr/local/bin/wg-quick \
-  https://github.com/joseluisfreire/wireguard-tools-static/releases/latest/download/wg-quick
-chmod +x /usr/local/bin/wg /usr/local/bin/wg-quick
-```
+**3. Instalar wireguard-tools**
 
-4. Instalar wg-mkauthd
-```bash
-curl -fsSL -o /usr/local/bin/wg-mkauthd \
-  https://github.com/joseluisfreire/wg-mkauthd/releases/latest/download/wg-mkauthd
-chmod +x /usr/local/bin/wg-mkauthd
-```
+    curl -fsSL -o /usr/local/bin/wg \
+      https://github.com/joseluisfreire/wireguard-tools-static/releases/latest/download/wg
+    curl -fsSL -o /usr/local/bin/wg-quick \
+      https://github.com/joseluisfreire/wireguard-tools-static/releases/latest/download/wg-quick
+    chmod +x /usr/local/bin/wg /usr/local/bin/wg-quick
 
-5. Configurar e iniciar o serviço
-```bash
-# Iniciar o daemon
-service wg-mkauthd start
-```
-# Verificar status
-```bash
-service wg-mkauthd status
-```
+**4. Instalar wg-mkauthd**
 
-# Parar o daemon
-```bash
-service wg-mkauthd stop
-```
+    curl -fsSL -o /usr/local/sbin/wg-mkauthd \
+      https://github.com/joseluisfreire/wg-mkauthd/releases/latest/download/wg-mkauthd
+    chmod +x /usr/local/sbin/wg-mkauthd
+
+**5. Configurar e iniciar o serviço**
+
+    service wg-mkauthd start
+    service wg-mkauthd status
 
 </details>
----
 
+```markdown
 
 🗂️ Estrutura de Arquivos
 
-```text
 /opt/mk-auth/admin/addons/
 ├── addon_wireguard.js              # Loader — registra o addon no menu do MK-AUTH
 └── wireguard/
@@ -213,14 +194,13 @@ WireGuard vs PPTP — Por que migrar
 | Auditabilidade | Fácil (código enxuto) | Praticamente impossível |
 
 🐛 Debug / Logs
+
 ```bash
-
-
 # Status do daemon
 service wg-mkauthd status
 
 # Logs do daemon (syslog)
-tail -f /var/log/syslog | grep wg-mkauthd
+tail -f /var/log/wg-mkauthd.log
 
 # Testar socket manualmente
 echo '{"action":"status"}' | socat - UNIX-CONNECT:/run/wgmkauth.sock

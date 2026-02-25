@@ -233,6 +233,77 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         date('c') . " POST ACAO={$acao} RAW=" . http_build_query($_POST) . "\n",
         FILE_APPEND
     );
+    // ------------------------------------------------------------------
+    // salvar_nat: Configura o IP Global e atualiza os .conf
+    // ------------------------------------------------------------------
+    if ($acao === 'salvar_nat') {
+        $ip_nat = trim($_POST['ip_nat'] ?? '');
+
+        if ($ip_nat === '') {
+            // PASSO 1: O cara limpou o campo. Zera a coluna no banco inteiro.
+            $mysqli->query("UPDATE wg_ramais SET endpoint = NULL");
+            $_SESSION['wg_msg_sucesso'] = "✅ Configuração removida. Retornado para Detecção Automática de IP.";
+            
+            // Nota: Quando remove, não precisamos mexer nos .conf existentes, 
+            // eles continuam com o IP que estava. Os novos ramais voltarão a 
+            // usar o IP detectado automaticamente.
+        } else {
+            // PASSO 2: VALIDAÇÃO CEGA (Regra de Ouro: Só IPv4 puro)
+            if (!filter_var($ip_nat, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                $_SESSION['wg_msg_erro'] = "❌ Inválido! Digite APENAS um endereço IPv4 puro (Ex: 177.10.20.30). Domínios ou portas não são permitidos.";
+                header('Location: ?tab=status');
+                exit;
+            }
+
+            // PASSO 3: Atualiza a coluna "endpoint" de TODO MUNDO (inclusive da Linha Mestra)
+            $stmt = $mysqli->prepare("UPDATE wg_ramais SET endpoint = ?");
+            $stmt->bind_param('s', $ip_nat);
+            $stmt->execute();
+            $stmt->close();
+
+            // PASSO 4: MÁGICA DO PREG_REPLACE (Estilo AWK)
+            // Vamos varrer todos os ramais reais e reescrever o texto do .conf
+            $rs = $mysqli->query("
+                SELECT id, config_text 
+                FROM wg_ramais 
+                WHERE wg_client_id != 'SERVER_MASTER' 
+                  AND config_text IS NOT NULL 
+                  AND config_text != ''
+            ");
+            
+            if ($rs) {
+                while ($row = $rs->fetch_assoc()) {
+                    $id_peer = (int)$row['id'];
+                    $conf    = $row['config_text'];
+                    
+                    // Regex cirúrgica:
+                    // $1 = Captura "Endpoint = "
+                    // [^:]+ = Ignora tudo até achar os dois pontos (O IP Velho)
+                    // $2 = Captura ":51820" (A porta existente e o resto da linha)
+                    $novo_conf = preg_replace(
+                        '/^(Endpoint\s*=\s*)[^:]+(:\d+.*)$/mi', 
+                        '${1}' . $ip_nat . '${2}', 
+                        $conf
+                    );
+                    
+                    // Se o regex rodou bem e o texto mudou, grava no banco
+                    if ($novo_conf !== null && $novo_conf !== $conf) {
+                        $stmtUp = $mysqli->prepare("UPDATE wg_ramais SET config_text = ? WHERE id = ?");
+                        if ($stmtUp) {
+                            $stmtUp->bind_param('si', $novo_conf, $id_peer);
+                            $stmtUp->execute();
+                            $stmtUp->close();
+                        }
+                    }
+                }
+                $rs->close();
+            }
+
+            $_SESSION['wg_msg_sucesso'] = "✅ IP Público fixado para: {$ip_nat}. Arquivos .conf atualizados com sucesso!";
+        }
+        header('Location: ?tab=status');
+        exit;
+    }
 
     // ------------------------------------------------------------------
     // download_snapshot: baixar snapshot COMPLETO (JSON: conf + banco)
@@ -260,6 +331,22 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $_SESSION['wg_msg_erro'] = "Snapshot #" . ($idx + 1) . " não encontrado para download.";
+        header('Location: ?tab=status');
+        exit;
+    }
+    // ------------------------------------------------------------------
+    // create_snapshot: criar backup manual do estado atual
+    // ------------------------------------------------------------------
+    if ($acao === 'create_snapshot') {
+        // Chama a função nativa que já existe no topo do seu arquivo
+        $ok = wg_snapshot_interface($mysqli, $socketPath, 'backup_manual_usuario');
+        
+        if ($ok) {
+            $_SESSION['wg_msg_sucesso'] = "✅ Backup manual criado com sucesso!";
+        } else {
+            $_SESSION['wg_msg_erro'] = "❌ Falha ao criar o backup manual.";
+        }
+        
         header('Location: ?tab=status');
         exit;
     }
@@ -774,12 +861,27 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg = $resp['message'] ?? ($resp['error'] ?? 'erro desconhecido');
             $_SESSION['wg_msg_erro'] = 'Falha ao criar interface wg0: ' . $msg;
         } else {
-            $_SESSION['wg_msg_sucesso'] = 'Interface wg0 criada e iniciada com sucesso.';
+            // ==============================================================
+            // A VONTADE DO CHEFE: CRIAR A LINHA MESTRA DA INTERFACE NO BANCO
+            // ==============================================================
+            // Essa linha garante que a tabela nunca fique vazia. 
+            // Ela vai guardar o endpoint (IP Forçado) e o interface_text (Snapshots)
+            $mysqli->query("
+                INSERT INTO wg_ramais (
+                    id_nas, wg_client_id, peer_name, ip_wg, public_key, 
+                    allowed_ips, status, provisionado_em, atualizado_em
+                ) VALUES (
+                    0, 'SERVER_MASTER', 'INTERFACE_WG0', '{$netv4}', 'MASTER_KEY_SYSTEM', 
+                    '{$netv4}', 'system', NOW(), NOW()
+                )
+            ");
+            
+            $_SESSION['wg_msg_sucesso'] = 'Interface wg0 criada e iniciada com sucesso. Registro Mestre criado no banco!';
         }
 
         header('Location: ?tab=status');
         exit;
-    }
+    } // Fim create_server
 
     // ------------------------------------------------------------------
     // reset_server: recria wg0.conf do zero com novos parâmetros
@@ -874,6 +976,20 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $mysqli->query("DELETE FROM wg_ramais");
         $deletados = $mysqli->affected_rows;
 
+        // ==============================================================
+        // RECRIAR A LINHA MESTRA APÓS O RESET
+        // ==============================================================
+        $rede_mestra = ($netv4_reset !== '') ? $netv4_reset : '0.0.0.0/0';
+        $mysqli->query("
+            INSERT INTO wg_ramais (
+                id_nas, wg_client_id, peer_name, ip_wg, public_key, 
+                allowed_ips, status, provisionado_em, atualizado_em
+            ) VALUES (
+                0, 'SERVER_MASTER', 'INTERFACE_WG0', '{$rede_mestra}', 'MASTER_KEY_SYSTEM', 
+                '{$rede_mestra}', 'system', NOW(), NOW()
+            )
+        ");
+
         file_put_contents(
             '/tmp/wg_server_reset.log',
             date('c') . " RESET OK: $deletados peers deletados | Rede: $netv4_reset | Porta: $port_reset\n",
@@ -893,84 +1009,115 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // ------------------------------------------------------------------
-    // criar_peer: cria peer novo via socket e grava em wg_ramais
+    // criar_peer: cria peer novo via socket e grava em wg_ramais (Foco VPS/Infra)
     // ⚡ SNAPSHOT ANTES
     // ------------------------------------------------------------------
     if ($acao === 'criar_peer') {
         $id_nas    = isset($_POST['id_nas']) ? (int)$_POST['id_nas'] : 0;
         $peer_name = isset($_POST['peer_name']) ? trim($_POST['peer_name']) : '';
         $address   = isset($_POST['address'])   ? trim($_POST['address'])   : '';
+        $msg_erro  = '';
 
+        // ==========================================
+        // 1. VALIDAÇÕES BÁSICAS
+        // ==========================================
         if ($peer_name === '' || $address === '') {
-            $msg_erro .= 'Falha na validação de campos. Nome e endereço são obrigatórios.';
-        } elseif (!isValidIPv4Cidr($address)) {
-            $msg_erro .= 'Endereço inválido. Use IPv4/CIDR, ex: 172.16.2.112/32.';
-        } else {
-            [$net_ip, $net_mask] = wg_get_net_from_daemon($socketPath);
-            if (!$net_ip || !$net_mask) {
-                $msg_erro .= 'Rede base da interface wg0 inválida ou não encontrada (wg_address).';
-            } elseif (!ipInSubnet($address, $net_ip, $net_mask)) {
-                $msg_erro .= "Endereço {$address} fora da faixa da interface wg0 ({$net_ip}/{$net_mask}).";
+            $msg_erro .= 'Falha na validação de campos. Nome e endereço são obrigatórios. ';
+        }
+
+        // ==========================================
+        // 2. VALIDAÇÕES DE REDE (Usando suas funções nativas)
+        // ==========================================
+        if ($msg_erro === '') {
+            if (!isValidIPv4Cidr($address)) {
+                $msg_erro .= 'Endereço inválido. Use formato IPv4/CIDR, ex: 10.66.66.50/32. ';
+            } else {
+                [$net_ip, $net_mask] = wg_get_net_from_daemon($socketPath);
+                if (!$net_ip || !$net_mask) {
+                    $msg_erro .= 'Rede base da interface wg0 não encontrada no daemon. ';
+                } elseif (!ipInSubnet($address, $net_ip, $net_mask)) {
+                    $msg_erro .= "Endereço {$address} fora da faixa da interface wg0 ({$net_ip}/{$net_mask}). ";
+                }
             }
         }
 
+        // ==========================================
+        // 3. VALIDAÇÃO DE UNICIDADE NO BANCO
+        // ==========================================
+        // Verifica NAS (Caso ainda seja usado no futuro, mantemos sua lógica)
         if ($msg_erro === '' && $id_nas > 0) {
-            $stmtNas = $mysqli->prepare("
-                SELECT id FROM wg_ramais WHERE id_nas = ? LIMIT 1
-            ");
+            $stmtNas = $mysqli->prepare("SELECT id FROM wg_ramais WHERE id_nas = ? LIMIT 1");
             if ($stmtNas) {
                 $stmtNas->bind_param('i', $id_nas);
                 if (!$stmtNas->execute()) {
-                    $msg_erro .= 'Erro execute SELECT NAS: ' . $stmtNas->error;
+                    $msg_erro .= 'Erro BD (SELECT NAS): ' . $stmtNas->error;
                 } else {
                     $stmtNas->store_result();
                     if ($stmtNas->num_rows > 0) {
-                        $msg_erro .= 'Já existe peer provisionado para este NAS.';
+                        $msg_erro .= 'Já existe um peer provisionado para este NAS. ';
                     }
                 }
                 $stmtNas->close();
-            } else {
-                $msg_erro .= 'Erro prepare SELECT NAS: ' . $mysqli->error;
             }
         }
 
+        // Verifica Nome ou IP duplicado
         if ($msg_erro === '') {
-            $stmt = $mysqli->prepare("
-                SELECT id FROM wg_ramais WHERE peer_name = ? OR ip_wg = ? LIMIT 1
-            ");
+            $stmt = $mysqli->prepare("SELECT nome, ip_wg FROM wg_ramais WHERE nome = ? OR ip_wg = ? LIMIT 1");
             if ($stmt) {
                 $stmt->bind_param('ss', $peer_name, $address);
                 if (!$stmt->execute()) {
-                    $msg_erro .= 'Erro execute SELECT unicidade: ' . $stmt->error;
+                    $msg_erro .= 'Erro BD (SELECT unicidade): ' . $stmt->error;
                 } else {
-                    $stmt->store_result();
-                    if ($stmt->num_rows > 0) {
-                        $msg_erro .= 'Já existe peer com esse nome ou endereço.';
+                    $result = $stmt->get_result();
+                    if ($result->num_rows > 0) {
+                        $row = $result->fetch_assoc();
+                        if (strcasecmp($row['nome'], $peer_name) === 0) {
+                            $msg_erro .= "Já existe uma conexão com o nome '{$peer_name}'. ";
+                        } else {
+                            $msg_erro .= "O IP '{$address}' já está sendo usado por outro servidor. ";
+                        }
                     }
                 }
                 $stmt->close();
-            } else {
-                $msg_erro .= 'Erro prepare SELECT unicidade: ' . $mysqli->error;
             }
         }
 
+        // Se acumulou qualquer erro, aborta e volta pra tela de criação
         if ($msg_erro !== '') {
-            $_SESSION['wg_msg_erro'] = $msg_erro;
+            $_SESSION['wg_msg_erro'] = trim($msg_erro);
             header('Location: ?tab=criar');
             exit;
         }
 
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // ==============================================================
+        // 4. PREPARAÇÃO E ENVIO PARA O DAEMON (wg-quick / socket)
+        // ==============================================================
+        
         // SNAPSHOT antes de criar o peer
-        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         wg_snapshot_interface($mysqli, $socketPath, 'before_create_client');
 
-        $resp = wg_call([
+        // Ler a linha 1 para injetar o NAT Forçado
+        $ip_forcado_global = '';
+        $rsCfg = $mysqli->query("SELECT endpoint FROM wg_ramais ORDER BY id ASC LIMIT 1");
+        if ($rsCfg && $rowCfg = $rsCfg->fetch_assoc()) {
+            $ip_forcado_global = trim($rowCfg['endpoint'] ?? '');
+        }
+
+        $payload = [
             'action'  => 'create-client',
             'name'    => $peer_name,
             'address' => $address,
-        ], $socketPath);
+        ];
 
+        // Se o NAT estiver preenchido, injeta no payload
+        if ($ip_forcado_global !== '') {
+            $payload['endpoint'] = $ip_forcado_global;
+        }
+
+        $resp = wg_call($payload, $socketPath);
+
+        // Debug log
         file_put_contents(
             '/tmp/wg_create_client.debug',
             date('c') . " CRIAR_PEER RESP: " . var_export($resp, true) . "\n",
@@ -978,9 +1125,7 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         );
 
         if (empty($resp['ok']) || empty($resp['data'])) {
-            $msg_erro .= 'Erro wg_call create-client: ' .
-                         ($resp['error'] ?? 'resposta inválida');
-            $_SESSION['wg_msg_erro'] = $msg_erro;
+            $_SESSION['wg_msg_erro'] = 'Erro no Daemon (create-client): ' . ($resp['error'] ?? 'resposta inválida');
             header('Location: ?tab=criar');
             exit;
         }
@@ -990,9 +1135,7 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $wg_client_id    = $d['id']         ?? '';
         $public_key      = $d['publicKey']  ?? '';
         $allowed_ips     = $d['allowedIPs'] ?? $address;
-        $persistent_keep = isset($d['persistentKeepalive'])
-            ? (int)$d['persistentKeepalive']
-            : null;
+        $persistent_keep = isset($d['persistentKeepalive']) ? (int)$d['persistentKeepalive'] : null;
 
         $config_text = '';
         if (!empty($d['config'])) {
@@ -1000,38 +1143,32 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($wg_client_id === '' || $public_key === '') {
-            $msg_erro .= 'Resposta incompleta (sem id ou publicKey).';
-            $_SESSION['wg_msg_erro'] = $msg_erro;
+            $_SESSION['wg_msg_erro'] = 'Daemon retornou resposta incompleta (sem id ou publicKey).';
             header('Location: ?tab=criar');
             exit;
         }
 
+        // ==============================================================
+        // 5. SALVAR NO BANCO DE DADOS
+        // ==============================================================
         $stmtIns = $mysqli->prepare("
             INSERT INTO wg_ramais (
-                id_nas,
-                wg_client_id,
-                peer_name,
-                ip_wg,
-                public_key,
-                allowed_ips,
-                persistent_keepalive,
-                config_text,
-                downloadable_config,
-                status,
-                provisionado_em,
-                atualizado_em
+                id_nas, wg_client_id, peer_name, ip_wg, public_key, 
+                allowed_ips, persistent_keepalive, config_text, 
+                downloadable_config, status, provisionado_em, atualizado_em,
+                endpoint
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'enabled', NOW(), NOW())
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'enabled', NOW(), NOW(), ?)
         ");
+        
         if (!$stmtIns) {
-            $msg_erro .= 'Erro prepare INSERT: ' . $mysqli->error;
-            $_SESSION['wg_msg_erro'] = $msg_erro;
+            $_SESSION['wg_msg_erro'] = 'Erro prepare INSERT: ' . $mysqli->error;
             header('Location: ?tab=criar');
             exit;
         }
 
         $stmtIns->bind_param(
-            'isssssis',
+            'isssssiss',
             $id_nas,
             $wg_client_id,
             $peer_name,
@@ -1039,19 +1176,18 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $public_key,
             $allowed_ips,
             $persistent_keep,
-            $config_text
+            $config_text,
+            $ip_forcado_global
         );
 
         if ($stmtIns->execute()) {
-            $_SESSION['wg_msg_sucesso'] =
-                'Peer WireGuard criado e salvo em wg_ramais (com config_text).';
+            $_SESSION['wg_msg_sucesso'] = "✅ Servidor '{$peer_name}' configurado com sucesso!";
             $stmtIns->close();
-            header('Location: ?tab=criar');
+            header('Location: ?tab=peers');
             exit;
         } else {
-            $msg_erro .= 'Erro execute INSERT: ' . $stmtIns->error;
+            $_SESSION['wg_msg_erro'] = 'Erro ao salvar no BD: ' . $stmtIns->error;
             $stmtIns->close();
-            $_SESSION['wg_msg_erro'] = $msg_erro;
             header('Location: ?tab=criar');
             exit;
         }
@@ -1466,6 +1602,16 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $used_ips[$net_ip] = true;
+				
+				// ==============================================================
+                // === LER A LINHA 1 ANTES DO LOOP COMEÇAR ===
+                // ==============================================================
+                $ip_forcado_global = '';
+                $rsCfg = $mysqli->query("SELECT endpoint FROM wg_ramais ORDER BY id ASC LIMIT 1");
+                if ($rsCfg && $rowCfg = $rsCfg->fetch_assoc()) {
+                    $ip_forcado_global = trim($rowCfg['endpoint'] ?? '');
+                }
+                // ==============================================================
 
                 foreach ($ramal_ids as $id_nas) {
                     $stmtChk = $mysqli->prepare("
@@ -1541,13 +1687,25 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         FILE_APPEND
                     );
 
-                    $resp = wg_call([
+                    // ==============================================================
+                    // === ADICIONADO AQUI: MONTAR O PAYLOAD COM OU SEM O ENDPOINT ===
+                    // ==============================================================
+                    $payload = [
                         'action'  => 'create-client',
                         'name'    => $peer_name,
                         'address' => $address,
-                    ], $socketPath);
+                    ];
 
-                    file_put_contents(
+                    // Se a nossa "célula" no banco não estava vazia, injeta no JSON
+                    if ($ip_forcado_global !== '') {
+                        $payload['endpoint'] = $ip_forcado_global;
+                    }
+
+                    // Agora sim, manda o payload pro Go
+                    $resp = wg_call($payload, $socketPath);
+                    // ==============================================================
+                    
+					file_put_contents(
                         '/tmp/wg_provisionar_ramais.debug',
                         date('c') . " PROVISIONAR NAS {$id_nas} PEER {$peer_name} ADDR {$address} RESP: " . var_export($resp, true) . "\n",
                         FILE_APPEND
@@ -1590,9 +1748,10 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                             downloadable_config,
                             status,
                             provisionado_em,
-                            atualizado_em
+                            atualizado_em,
+                            endpoint
                         )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'enabled', NOW(), NOW())
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 'enabled', NOW(), NOW(), ?)
                     ");
                     if (!$stmtIns) {
                         $msg_erro .= 'Erro prepare INSERT wg_ramais: ' . $mysqli->error . ' ';
@@ -1600,7 +1759,7 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         continue;
                     }
                     $stmtIns->bind_param(
-                        'isssssis',
+                        'isssssiss',
                         $id_nas,
                         $wg_client_id,
                         $peer_name,
@@ -1608,7 +1767,8 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         $public_key,
                         $allowed_ips,
                         $persistent_keep,
-                        $config_text
+                        $config_text,
+                        $ip_forcado_global
                     );
 
                     if ($stmtIns->execute()) {

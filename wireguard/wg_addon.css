@@ -1,43 +1,276 @@
-.input.is-editing-ip {
-  border-color: #3273dc;
-  box-shadow: 0 0 0 0.125em rgba(50,115,220,.35);
-  font-weight: bold;
-  background-color: #fffbeb; /* amarelinho claro */
-  color: #000;
+/* ==========================================================================
+   WG MK-Auth ADDON - SOFT UI DESIGN (NANO BANANA STYLE) - VERSÃO FINAL
+   ========================================================================== */
+
+/* Fonte limpa e arredondada */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+body, html, .content, .title, .subtitle, .button, .input, .table {
+    font-family: 'Inter', sans-serif !important;
 }
+
+/* 1. O Fundo da página igualzinho à imagem (Azul/Cinza super claro) */
+html, body {
+    background-color: #f0f4f8 !important; 
+}
+
 /* ========================================
-   ABAS DESABILITADAS
+   2. CARDS (.box) - Efeito Nuvem 
    ======================================== */
+.box {
+    background-color: #ffffff;
+    border-radius: 16px; /* Bordas bem arredondadas */
+    border: none !important;
+    box-shadow: 0 16px 40px rgba(100, 116, 139, 0.12) !important; 
+    padding: 1.25rem !important; /* Espaço interno enxuto */
+    transition: transform 0.3s ease;
+}
+
+h1, .title, .subtitle {
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    letter-spacing: -0.5px;
+}
+
+/* ========================================
+   3. ABAS (.tabs) - Estilo Flutuante
+   ======================================== */
+.tabs {
+    margin-bottom: 1.5rem !important;
+}
+
+.tabs ul {
+    border-bottom: none !important;
+    justify-content: center;
+    gap: 10px;
+}
+
+.tabs.is-boxed {
+    background: transparent;
+}
+
+.tabs.is-boxed li {
+    margin: 0;
+}
+
+/* Aba Desativada */
+.tabs.is-boxed li a {
+    background-color: #ffffff !important;
+    border: none !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 15px rgba(100, 116, 139, 0.08);
+    color: #64748b !important;
+    font-weight: 600;
+    padding: 0.5rem 1.25rem !important;
+    font-size: 0.9rem !important;
+    transition: all 0.3s ease;
+}
+
+.tabs.is-boxed li a:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(100, 116, 139, 0.12);
+    color: #0f172a !important;
+}
+
+/* Aba ATIVA */
+.tabs.is-boxed li.is-active a {
+    color: #0f172a !important;
+    border-top: 4px solid #06b6d4 !important;
+    border-radius: 8px 8px 12px 12px !important;
+    box-shadow: 0 8px 25px rgba(100, 116, 139, 0.15);
+}
+
 .tabs li.is-disabled {
     opacity: 0.5;
 }
-
 .tabs li.is-disabled a {
     cursor: not-allowed !important;
     pointer-events: none;
-    color: #b5b5b5 !important;
-    background-color: #fafafa !important;
-    border-bottom-color: transparent !important;
+    color: #94a3b8 !important;
 }
 
-.tabs li.is-disabled a:hover {
-    background-color: #fafafa !important;
-    border-bottom-color: transparent !important;
-    color: #b5b5b5 !important;
+/* ========================================
+   4. LAYOUT COMPACTO DAS COLUNAS
+   ======================================== */
+.columns {
+    margin-top: -0.5rem !important;
+}
+.column {
+    padding: 0.5rem !important; /* Diminui o fosso entre os 3 cards */
 }
 
-.tabs li.is-disabled .icon {
-    opacity: 0.4;
+/* ========================================
+   5. CARD DO MEIO (SNAPSHOT PRETO)
+   ======================================== */
+.box pre {
+    padding: 0.75rem !important;
+    font-size: 0.75rem !important; /* Texto do código bem menor */
+    line-height: 1.3 !important;
+    max-height: 250px !important; /* Limita a altura máxima para não empurrar a tela */
+    overflow-y: auto !important; /* Cria barra de rolagem apenas dentro do código */
+    border-radius: 10px !important;
 }
 
-/* Tabs ativas/hover (reforçar comportamento normal) */
-.tabs li:not(.is-disabled) a:hover {
-    background-color: #f5f5f5;
-    border-bottom-color: #dbdbdb;
+/* ========================================
+   6. CARD DIREITO (BACKUP - ADEUS AZULÃO)
+   ======================================== */
+.notification.is-info {
+    background-color: #f0f9ff !important; /* Azul Gelo */
+    color: #0f172a !important; 
+    border: 1px solid #bae6fd !important; 
+    border-left: 8px solid #0ea5e9 !important; /* Faixa lateral SaaS */
+    border-radius: 16px !important;
+    box-shadow: 0 8px 20px rgba(14, 165, 233, 0.08) !important;
+    padding: 1.25rem !important;
+    font-size: 0.85rem !important;
 }
 
-.tabs li.is-active a {
-    border-bottom-color: #3273dc !important;
-    color: #3273dc !important;
+.notification.is-info .has-text-danger, 
+.notification.is-info [style*="color"],
+.notification.is-info [color] {
+    color: #e11d48 !important; /* Vermelho moderno e suave */
+    font-weight: 600 !important;
 }
 
+.notification.is-info code {
+    background: #ffffff !important;
+    color: #0284c7 !important;
+    border: 1px solid #e0f2fe !important;
+    border-radius: 6px !important;
+    padding: 0.25rem 0.5rem !important;
+    font-weight: 700 !important;
+}
+
+/* Input do Arquivo */
+.file {
+    margin-top: 1rem !important;
+    margin-bottom: 1rem !important;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02) !important;
+}
+.file-cta {
+    background-color: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    border-radius: 8px 0 0 8px !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease;
+}
+.file-name {
+    background-color: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-left: none !important;
+    color: #94a3b8 !important;
+    border-radius: 0 8px 8px 0 !important;
+    font-weight: 500 !important;
+}
+.file:hover .file-cta {
+    background-color: #e2e8f0 !important;
+    color: #0f172a !important;
+}
+
+/* Botões do Backup */
+.notification.is-info .button.is-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1.25rem !important;
+    height: auto !important;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+}
+.button.is-info {
+    background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+    border-radius: 8px !important;
+    border: none !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+}
+
+/* ========================================
+   7. TABELAS (Demais abas: Peers, etc)
+   ======================================== */
+.table {
+    background-color: transparent !important;
+    border-radius: 12px;
+    width: 100%;
+}
+.table thead { background-color: #f8fafc; }
+.table thead th {
+    border: none !important;
+    color: #64748b !important;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    padding: 1rem !important;
+}
+.table tbody td {
+    border: none !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    padding: 1rem !important;
+    color: #334155;
+    vertical-align: middle;
+}
+.table tbody tr:last-child td { border-bottom: none !important; }
+.table tbody tr:hover { background-color: #f8fafc !important; }
+
+/* ========================================
+   8. EFEITOS DE BOTÕES E JS GERAL
+   ======================================== */
+.button {
+    border-radius: 10px;
+    font-weight: 600;
+    border: none;
+    transition: all 0.2s ease;
+}
+.button:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
+}
+
+.input.is-editing-ip {
+    border-color: #06b6d4 !important; 
+    box-shadow: 0 0 0 0.15em rgba(6, 182, 212, 0.25) !important;
+    font-weight: 700;
+    background-color: #f0fdfa !important; 
+    color: #000;
+    border-radius: 8px;
+    transition: all 0.3s;
+}
+/* ========================================
+   9. NOTIFICAÇÕES (Toasts de Sucesso/Erro)
+   ======================================== */
+.notification {
+    border-radius: 12px !important;
+    border: none !important;
+    padding: 1.25rem 1.5rem !important;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.04) !important;
+}
+
+/* Aviso de Sucesso (Verdinho suave com borda) */
+.notification.is-success, .notification.is-success.is-light {
+    background-color: #f0fdf4 !important; 
+    color: #064e3b !important;
+    border-left: 8px solid #10b981 !important; 
+}
+
+/* Aviso de Erro (Vermelho suave) */
+.notification.is-danger, .notification.is-danger.is-light {
+    background-color: #fef2f2 !important;
+    color: #991b1b !important;
+    border-left: 8px solid #ef4444 !important;
+}
+
+/* Aviso de Atenção (Amarelo) */
+.notification.is-warning, .notification.is-warning.is-light {
+    background-color: #fffbeb !important;
+    color: #92400e !important;
+    border-left: 8px solid #f59e0b !important;
+}
+
+/* O botãozinho de fechar o aviso (X) */
+.notification .delete {
+    background-color: rgba(0, 0, 0, 0.1) !important;
+}
+.notification .delete:hover {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+}

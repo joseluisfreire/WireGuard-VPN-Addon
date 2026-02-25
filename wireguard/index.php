@@ -179,6 +179,7 @@ if ($mysqli->connect_errno) {
 			wg_client_id         VARCHAR(64) NOT NULL,
 			peer_name            VARCHAR(128) NOT NULL,
 			ip_wg                VARCHAR(64) DEFAULT NULL,
+			endpoint VARCHAR(64) DEFAULT NULL,
 			public_key           VARCHAR(255) DEFAULT NULL,
 			preshared_key        VARCHAR(255) DEFAULT NULL,
 			allowed_ips          VARCHAR(255) DEFAULT NULL,
@@ -873,16 +874,29 @@ if (!$erro_db) {
 </nav>
 
 <div class="content">
-<h1>
-  Addon WireGuard
-  <a href="#"
-     onclick="document.getElementById('about-wg-popup').classList.add('is-active'); return false;"
-     title="Sobre o Addon WireGuard">
-    <span class="icon is-small">
-      <i class="bi bi-info-circle"></i>
-    </span>
-  </a>
-</h1>
+<!-- CABEÇALHO WIREGUARD VPN COMPACTO -->
+<div class="mb-4" style="margin-top: -10px;">
+    <!-- Colocamos TUDO dentro do h1 com display: flex -->
+    <h1 class="title is-4 mb-0" style="font-weight: 800; color: #0f172a; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px;">
+        
+        <!-- Logo SVG Oficial -->
+        <img src="WireGuard_logo.svg" 
+             alt="Logo WireGuard" 
+             style="width: 36px; height: 36px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.15)); margin-top: -2px;">
+        
+        WIREGUARD VPN
+        
+        <!-- O SEU botão (i) original mantendo a lógica de abrir o Popup -->
+        <a href="#"
+           onclick="document.getElementById('about-wg-popup').classList.add('is-active'); return false;"
+           title="Sobre o Addon WireGuard"
+           style="color: #94a3b8; transition: color 0.2s ease; margin-top: 2px;">
+          <span class="icon is-small hover-ciano">
+            <i class="bi bi-info-circle"></i>
+          </span>
+        </a>
+    </h1>
+</div>
 
 	<?php if ($erro_db): ?>
 		<div class="notification is-danger">
@@ -1215,166 +1229,158 @@ if (!is_array($status_data)) {
 }
 ?>
 
-<!-- CARD ÚNICO COMPACTO -->
+<!-- CARD ÚNICO COMPACTO (WIDGET DE STATUS ULTRA SLIM) -->
 <div style="background: <?php echo $vs['bg_gradient']; ?>; 
             border-left: <?php echo $vs['border']; ?>; 
-            border-radius: 8px; 
-            padding: 1.5rem; 
+            border-radius: 12px; 
+            padding: 1.25rem; 
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
     
     <!-- SEÇÃO SUPERIOR: Plug + Status vertical -->
-    <div style="text-align: center; margin-bottom: 1.5rem;">
-        <!-- ÍCONE PLUG -->
+    <div style="text-align: center; margin-bottom: 0.75rem;">
+        <!-- ÍCONE PLUG (MENOR) -->
         <div style="position: relative; display: inline-block;">
-            <!-- Plug principal -->
             <i class="<?php echo $vs['icon_main']; ?>" 
-               style="font-size: 3.5rem; 
+               style="font-size: 2.5rem; 
                       color: <?php echo $vs['icon_color']; ?>; 
                       filter: drop-shadow(0 3px 6px rgba(0,0,0,0.2));"></i>
             
-            <!-- Overlay (X ou ✓ ou !) -->
             <?php if ($vs['icon_overlay']): ?>
                 <i class="<?php echo $vs['icon_overlay']; ?>" 
                    style="position: absolute; 
                           top: 50%; 
                           left: 50%; 
                           transform: translate(-50%, -50%);
-                          font-size: 1.75rem; 
+                          font-size: 1.25rem; 
                           color: white; 
                           text-shadow: 0 2px 4px rgba(0,0,0,0.5);
                           font-weight: bold;"></i>
             <?php endif; ?>
         </div>
         
-        <!-- TÍTULO abaixo do plug -->
-        <h2 class="title is-6" style="margin-top: 0.5rem; margin-bottom: 0; color: <?php echo $vs['title_color']; ?>;">
+        <!-- TÍTULO -->
+        <h2 class="title is-6" style="margin-top: 0.25rem; margin-bottom: 0; font-size: 0.95rem; color: <?php echo $vs['title_color']; ?>;">
             <?php echo htmlspecialchars($state['text']); ?>
         </h2>
         
-        <!-- DETALHE (se tiver) -->
+        <!-- DETALHE -->
         <?php if ($state['detail']): ?>
-            <p style="margin-top: 0.5rem; color: #666; font-size: 0.85rem;">
+            <p style="margin-top: 0.25rem; color: #666; font-size: 0.8rem;">
                 <?php echo htmlspecialchars($state['detail']); ?>
             </p>
         <?php endif; ?>
     </div>
     
-    <!-- DETALHES TÉCNICOS (COM DADOS DO DAEMON) -->
+    <!-- CONTEÚDO DINÂMICO (COM DADOS DO DAEMON) -->
     <?php if ($state['show_details'] && $state['data']): ?>
         <?php $d = $state['data']; ?>
-        <table class="table is-fullwidth is-narrow is-striped" style="background: rgba(255,255,255,0.5); border-radius: 4px; margin-bottom: 1rem;">
-            <tbody>
-                <tr>
-                    <td style="width: 35%; padding:0.4rem; font-weight:600;">Interface:</td>
-                    <td style="padding:0.4rem;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <code style="flex: 1;"><?php echo htmlspecialchars($d['interface'] ?? 'wg0'); ?></code>
-                            <button class="button is-text is-small" type="button" 
-                                    onclick="copiarTexto('<?php echo htmlspecialchars($d['interface'] ?? 'wg0'); ?>');"
-                                    title="Copiar">
-                                <i class="bi-clipboard"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding:0.4rem; font-weight:600;">Status:</td>
-                    <td style="padding:0.4rem;">
-                        <span class="tag <?php echo !empty($d['if_up']) ? 'is-success' : 'is-warning'; ?>">
-                            <?php echo !empty($d['if_up']) ? 'UP' : 'DOWN'; ?>
-                        </span>
-                    </td>
-                </tr>
-                <?php if (!empty($d['wg_address'])): ?>
-                <tr>
-                    <td style="padding:0.4rem; font-weight:600;">Network:</td>
-                    <td style="padding:0.4rem;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <code style="flex: 1; font-size: 0.85rem;"><?php echo htmlspecialchars($d['wg_address']); ?></code>
-                            <button class="button is-text is-small" type="button" 
-                                    onclick="copiarTexto('<?php echo htmlspecialchars($d['wg_address']); ?>');"
-                                    title="Copiar">
-                                <i class="bi-clipboard"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                <?php endif; ?>
-                <tr>
-                    <td style="padding:0.4rem; font-weight:600;">IP Público:</td>
-                    <td style="padding:0.4rem;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <code style="flex: 1; font-size: 0.85rem;"><?php echo htmlspecialchars($d['public_ip'] ?? 'N/A'); ?></code>
-                            <button class="button is-text is-small" type="button" 
-                                    onclick="copiarTexto('<?php echo htmlspecialchars($d['public_ip'] ?? 'N/A'); ?>');"
-                                    title="Copiar">
-                                <i class="bi-clipboard"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding:0.4rem; font-weight:600;">Porta:</td>
-                    <td style="padding:0.4rem;">
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <code style="flex: 1;"><?php echo isset($d['port']) ? (int)$d['port'] : 'N/A'; ?></code>
-                            <button class="button is-text is-small" type="button" 
-                                    onclick="copiarTexto('<?php echo isset($d['port']) ? (int)$d['port'] : 'N/A'; ?>');"
-                                    title="Copiar">
-                                <i class="bi-clipboard"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+        <div style="background: rgba(255,255,255,0.4); border-radius: 10px; padding: 0.5rem 0.75rem; margin-bottom: 1rem;">
+
+            <!-- 1. STATUS -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
+                <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Status:</span>
+                <span class="tag <?php echo !empty($d['if_up']) ? 'is-success' : 'is-warning'; ?>" style="font-weight: 700; font-size: 0.7rem; height: 20px; padding: 0 0.5rem;">
+                    <?php echo !empty($d['if_up']) ? 'UP' : 'DOWN'; ?>
+                </span>
+            </div>
+
+            <!-- 2. INTERFACE -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
+                <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Interface:</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($d['interface'] ?? 'wg0'); ?></span>
+                    <a href="#" onclick="copiarTexto('<?php echo htmlspecialchars($d['interface'] ?? 'wg0'); ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
+                </div>
+            </div>
+
+            <!-- 3. IP PÚBLICO -->
+            <?php 
+            // Lógica Lê apenas da Linha 1 da wg_ramais
+            $ip_forcado = '';
+            $rsCfg = $mysqli->query("SELECT endpoint FROM wg_ramais ORDER BY id ASC LIMIT 1");
+            if ($rsCfg && $rowCfg = $rsCfg->fetch_assoc()) {
+                $ip_forcado = trim($rowCfg['endpoint'] ?? '');
+            }
+            $ip_detectado = $d['public_ip'] ?? 'N/A';
+            
+            // Define o que vai aparecer na tela
+            $ip_mostrar = ($ip_forcado !== '') ? $ip_forcado : $ip_detectado;
+            $tag_tipo = ($ip_forcado !== '') ? '<span class="tag is-warning is-light" style="font-size: 0.6rem; padding: 0 4px; height: 16px; margin-right: 4px;">NAT Forçado</span>' : '<span class="tag is-info is-light" style="font-size: 0.6rem; padding: 0 4px; height: 16px; margin-right: 4px;">Auto</span>';
+            ?>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
+                <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">IP Público:</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <?php echo $tag_tipo; ?>
+                    <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($ip_mostrar); ?></span>
+                    <a href="#" onclick="document.getElementById('modal_nat').classList.add('is-active'); return false;" style="color: #0ea5e9; font-size: 0.9rem;" title="Configurar IP de Borda (NAT)">
+                        <i class="bi-gear-fill"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 4. PORTA -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; <?php echo !empty($d['wg_address']) ? 'border-bottom: 1px solid rgba(0,0,0,0.06);' : ''; ?>">
+                <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Porta:</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo isset($d['port']) ? (int)$d['port'] : 'N/A'; ?></span>
+                    <a href="#" onclick="copiarTexto('<?php echo isset($d['port']) ? (int)$d['port'] : 'N/A'; ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
+                </div>
+            </div>
+
+            <!-- 5. NETWORK (Opcional) -->
+            <?php if (!empty($d['wg_address'])): ?>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0;">
+                <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Network:</span>
+                <div style="display: flex; align-items: center; gap: 0.4rem;">
+                    <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($d['wg_address']); ?></span>
+                    <a href="#" onclick="copiarTexto('<?php echo htmlspecialchars($d['wg_address']); ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
+                </div>
+            </div>
+            <?php endif; ?>
+
+        </div>
     
-    <!-- INFORMAÇÕES ESTÁTICAS (SEM DADOS DO DAEMON) -->
+    <!-- INFORMAÇÕES ESTÁTICAS (QUANDO OFF) -->
     <?php elseif (!empty($state['show_info'])): ?>
-        <table class="table is-fullwidth is-narrow is-striped" style="background: rgba(255,255,255,0.5); border-radius: 4px; margin-bottom: 1rem;">
-            <tbody>
-                <?php foreach ($state['show_info'] as $info): ?>
-                <tr>
-                    <td style="width: 35%; padding:0.4rem; font-weight:600;"><?php echo htmlspecialchars($info['label']); ?>:</td>
-                    <td style="padding:0.4rem;">
+        <div style="background: rgba(255,255,255,0.4); border-radius: 10px; padding: 0.5rem 0.75rem; margin-bottom: 1rem;">
+            <?php $total = count($state['show_info']); $i = 0; ?>
+            <?php foreach ($state['show_info'] as $info): ?>
+                <?php $i++; $is_last = ($i === $total); ?>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; <?php echo !$is_last ? 'border-bottom: 1px solid rgba(0,0,0,0.06);' : ''; ?>">
+                    <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;"><?php echo htmlspecialchars($info['label']); ?>:</span>
+                    
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
                         <?php if ($info['type'] === 'code'): ?>
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <code style="flex: 1; font-size: 0.80rem;"><?php echo htmlspecialchars($info['value']); ?></code>
-                                <button class="button is-text is-small" type="button" 
-                                        onclick="copiarTexto('<?php echo htmlspecialchars($info['value']); ?>');"
-                                        title="Copiar">
-                                    <i class="bi-clipboard"></i>
-                                </button>
-                            </div>
+                            <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($info['value']); ?></span>
+                            <a href="#" onclick="copiarTexto('<?php echo htmlspecialchars($info['value']); ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
                         <?php elseif ($info['type'] === 'tag-danger'): ?>
-                            <span class="tag is-danger"><?php echo htmlspecialchars($info['value']); ?></span>
+                            <span class="tag is-danger" style="font-weight: 700; font-size: 0.7rem; height: 20px; padding: 0 0.5rem;"><?php echo htmlspecialchars($info['value']); ?></span>
                         <?php elseif ($info['type'] === 'tag-warning'): ?>
-                            <span class="tag is-warning"><?php echo htmlspecialchars($info['value']); ?></span>
+                            <span class="tag is-warning" style="font-weight: 700; font-size: 0.7rem; height: 20px; padding: 0 0.5rem;"><?php echo htmlspecialchars($info['value']); ?></span>
                         <?php else: ?>
-                            <?php echo htmlspecialchars($info['value']); ?>
+                            <span style="font-size: 0.85rem; color: #0f172a; font-weight: 500;"><?php echo htmlspecialchars($info['value']); ?></span>
                         <?php endif; ?>
-                    </td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
     <?php endif; ?>
     
-    <!-- BOTÕES -->
+    <!-- BOTÕES (LIGAR/DESLIGAR) -->
     <?php if ($state['show_buttons']): ?>
-        <div class="buttons is-centered">
-            <form method="post" style="display:inline;">
+        <div class="buttons is-centered" style="margin-bottom: 0;">
+            <form method="post" style="display:inline; margin: 0;">
                 <input type="hidden" name="acao" value="server-down">
-                <button class="button is-danger" type="submit">
-                    <span class="icon"><i class="bi bi-power"></i></span>
+                <button class="button is-danger is-small" type="submit" style="border-radius: 8px; font-weight: 600;">
+                    <span class="icon is-small"><i class="bi bi-power"></i></span>
                     <span>Desligar</span>
                 </button>
             </form>
 
-            <form method="post" style="display:inline;">
+            <form method="post" style="display:inline; margin: 0;">
                 <input type="hidden" name="acao" value="server-up">
-                <button class="button is-success" type="submit">
-                    <span class="icon"><i class="bi bi-play-fill"></i></span>
+                <button class="button is-success is-small" type="submit" style="border-radius: 8px; font-weight: 600;">
+                    <span class="icon is-small"><i class="bi bi-play-fill"></i></span>
                     <span>Ligar</span>
                 </button>
             </form>
@@ -1733,60 +1739,10 @@ if (!isset($snapshots)) {
 <?php else: ?>
             <!-- ============================================
                  Estado 2/3: 🟢🟡 INTERFACE EXISTE (UP ou DOWN)
-                 Exibir snapshots normais + importar backup
                  ============================================ -->
 
-<!-- BOTÃO IMPORTAR BACKUP (SÓ JSON) -->
-<div class="mb-4">
-    <button class="button is-small is-link is-outlined" type="button"
-            onclick="document.getElementById('import_backup_area').classList.toggle('is-hidden');">
-        <span class="icon"><i class="bi bi-upload"></i></span>
-        <span>Importar Backup</span>
-    </button>
-
-    <div id="import_backup_area" class="is-hidden mt-3">
-        <div class="notification is-info is-light">
-            <p class="mb-2" style="font-size:0.85rem;">
-                <strong>📂 Importar snapshot <code>.json</code> exportado pelo sistema.</strong><br>
-                Restaura a interface WireGuard <strong>e</strong> o banco de dados
-                (peers, nomes, IPs, configs) de uma só vez.<br>
-                <span class="has-text-danger">⚠️ Apenas arquivos <code>.json</code> são aceitos.
-                Arquivos <code>.conf</code> puros não são suportados.</span>
-            </p>
-
-            <form method="post" action="?tab=status" enctype="multipart/form-data"
-                  onsubmit="return confirmImportBackup();">
-                <input type="hidden" name="acao" value="import_backup_file">
-
-                <div class="field">
-                    <div class="file has-name is-small is-fullwidth">
-                        <label class="file-label">
-                            <input class="file-input" type="file" name="backup_conf"
-                                   accept=".json" required
-                                   onchange="this.closest('.file').querySelector('.file-name').textContent = this.files[0]?.name || 'Nenhum arquivo';">
-                            <span class="file-cta">
-                                <span class="file-icon"><i class="bi bi-folder2-open"></i></span>
-                                <span class="file-label">Escolher .json</span>
-                            </span>
-                            <span class="file-name">Nenhum arquivo</span>
-                        </label>
-                    </div>
-                </div>
-
-                <button class="button is-warning is-small" type="submit">
-                    <span class="icon"><i class="bi bi-cloud-upload"></i></span>
-                    <span>Restaurar este backup</span>
-                </button>
-            </form>
-        </div>
-    </div>
-</div>
-<!-- FIM IMPORTAR BACKUP -->
-
             <?php
-            // =========================================================
             // Lê snapshots do interface_text (FIFO de 5)
-            // =========================================================
             $snapshots = [];
             if (!$erro_db) {
                 $rs = $mysqli->query(
@@ -1798,96 +1754,186 @@ if (!isset($snapshots)) {
             }
             ?>
 
-            <?php if (empty($snapshots)): ?>
-                <div class="notification is-warning is-light">
-                    <span class="icon"><i class="bi bi-exclamation-triangle"></i></span>
-                    <span>Nenhum snapshot disponível ainda.</span>
-                    <p class="mt-2" style="font-size:0.85rem;">
-                        Snapshots são criados automaticamente antes de cada operação
-                        (criar, excluir, ativar, desativar peer).
-                        Até <strong>5</strong> versões são mantidas no banco de dados.
-                    </p>
-                </div>
-
-            <?php else: ?>
-                <p class="help mb-3">
-                    Últimos <strong><?php echo count($snapshots); ?></strong> de 5 snapshots
-                    (conf + banco armazenados em JSON).
+            <!-- BARRA DE FERRAMENTAS (Info + Botões) -->
+            <div class="is-flex is-justify-content-space-between is-align-items-center mb-3">
+                <p class="help mb-0" style="font-size: 0.85rem;">
+                    Últimos <strong><?php echo count($snapshots); ?></strong> de 5 snapshots.
                 </p>
+                
+                <div class="buttons are-small mb-0">
+                    <!-- BOTÃO CRIAR BACKUP MANUAL -->
+                    <form method="post" action="?tab=status" style="display:inline;" onsubmit="return confirm('Criar um snapshot do estado atual agora?');">
+                        <input type="hidden" name="acao" value="create_snapshot">
+                        <button class="button is-success is-light" type="submit" title="Salvar estado atual">
+                            <span class="icon"><i class="bi bi-camera"></i></span>
+                            <span style="font-weight: 600;">Criar</span>
+                        </button>
+                    </form>
 
-                <table class="table is-fullwidth is-narrow is-striped is-hoverable" style="font-size:0.85rem;">
-                    <thead>
-                        <tr>
-                            <th style="width:30px">#</th>
-                            <th>Data/Hora</th>
-                            <th>Motivo</th>
-                            <th style="width:120px">Peers</th>
-                            <th style="width:200px">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($snapshots as $i => $snap): ?>
-                        <tr>
-                            <td>#<?= $i + 1 ?></td>
-                            <td><?= htmlspecialchars($snap['at'] ?? '') ?></td>
-                            <td><?= htmlspecialchars($snap['reason'] ?? '') ?></td>
-                            <td>
-                                <?= (int)($snap['peers'] ?? 0) ?> peers
-                                <?php if (!empty($snap['sql'])): ?>
-                                    <span class="tag is-success is-light ml-1">SQL ✅</span>
-                                <?php else: ?>
-                                    <span class="tag is-danger is-light ml-1">Sem SQL ❌</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <!-- download .json -->
-                                <form method="post" style="display:inline">
-                                    <input type="hidden" name="acao" value="download_snapshot">
-                                    <input type="hidden" name="snapshot_index" value="<?= $i ?>">
-                                    <button class="button is-small is-info is-outlined" type="submit"
-                                            title="Baixar snapshot completo (JSON: conf + banco)">
-                                        <span class="icon"><i class="bi bi-download"></i></span>
-                                        <span>.json</span>
-                                    </button>
-                                </form>
-
-                                <!-- restore (só se tem SQL) -->
-                                <?php if (!empty($snap['sql'])): ?>
-                                <form method="post" style="display:inline"
-                                      onsubmit="return confirm('⚠️ RESTAURAR backup #<?= $i + 1 ?> de <?= htmlspecialchars($snap['at'] ?? '') ?>?\n\nIsso vai:\n• Substituir o wg0.conf\n• Limpar o banco e recriar <?= (int)($snap['peers'] ?? 0) ?> peers\n\nUm snapshot do estado atual será salvo antes.\n\nContinuar?')">
-                                    <input type="hidden" name="acao" value="restore_snapshot">
-                                    <input type="hidden" name="snapshot_index" value="<?= $i ?>">
-                                    <button class="button is-small is-warning" type="submit">
-                                        <span class="icon"><i class="bi bi-arrow-counterclockwise"></i></span>
-                                        <span>Restaurar</span>
-                                    </button>
-                                </form>
-                                <?php else: ?>
-                                <button class="button is-small is-warning" disabled title="Snapshot antigo, sem dump SQL">
-                                    <span class="icon"><i class="bi bi-arrow-counterclockwise"></i></span>
-                                    <span>Restaurar</span>
-                                </button>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
-
-                <div class="content is-small has-text-grey mt-2">
-                    <p>
-                        <span class="icon is-small"><i class="bi bi-info-circle"></i></span>
-                        <strong>#1</strong> = mais recente.
-                        Download baixa o snapshot completo (conf + banco) em <code>.json</code>.
-                        Restaurar executa: <code>wg-quick down</code> → escreve
-                        <code>wg0.conf</code> → restaura banco → <code>wg-quick up</code>.
-                    </p>
+                    <!-- BOTÃO IMPORTAR BACKUP -->
+                    <button class="button is-link is-light" type="button" title="Restaurar de um arquivo .json"
+                            onclick="document.getElementById('view_backup_list').classList.add('is-hidden'); 
+                                     document.getElementById('view_backup_import').classList.remove('is-hidden');">
+                        <span class="icon"><i class="bi bi-upload"></i></span>
+                        <span style="font-weight: 600;">Importar</span>
+                    </button>
                 </div>
+            </div>
 
-            <?php endif; ?>
+            <!-- ====================================================
+                 TELA 1: FORMULÁRIO DE IMPORTAÇÃO (Oculto por padrão)
+                 ==================================================== -->
+            <div id="view_backup_import" class="is-hidden" style="animation: fadeIn 0.3s ease;">
+                <div class="notification is-info is-light" style="border-radius: 8px; padding: 1.25rem;">
+                    <div class="is-flex is-justify-content-space-between is-align-items-center mb-2">
+                        <strong style="color: #0284c7;"><i class="bi bi-folder2-open mr-1"></i> Importar snapshot (.json)</strong>
+                        <button class="delete is-small" type="button" 
+                                onclick="document.getElementById('view_backup_import').classList.add('is-hidden'); 
+                                         document.getElementById('view_backup_list').classList.remove('is-hidden');"></button>
+                    </div>
+                    
+                    <p style="font-size:0.85rem; margin-bottom: 1rem; color: #0c4a6e;">
+                        Restaura a interface wg0 <strong>e</strong> o banco de dados (peers, configs) de uma só vez.<br>
+                        <span class="has-text-danger mt-1 is-block">⚠️ Apenas arquivos <code>.json</code> são aceitos.</span>
+                    </p>
+
+                    <form method="post" action="?tab=status" enctype="multipart/form-data"
+                          onsubmit="return confirmImportBackup();">
+                        <input type="hidden" name="acao" value="import_backup_file">
+
+                        <div class="field">
+                            <div class="file has-name is-small is-fullwidth is-info">
+                                <label class="file-label">
+                                    <input class="file-input" type="file" name="backup_conf" accept=".json" required
+                                           onchange="this.closest('.file').querySelector('.file-name').textContent = this.files[0]?.name || 'Nenhum arquivo';">
+                                    <span class="file-cta">
+                                        <span class="file-icon"><i class="bi bi-search"></i></span>
+                                        <span class="file-label">Procurar .json</span>
+                                    </span>
+                                    <span class="file-name" style="background: #fff;">Nenhum arquivo</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="buttons is-right mt-3 mb-0">
+                            <button class="button is-small" type="button" style="border-radius: 6px;"
+                                    onclick="document.getElementById('view_backup_import').classList.add('is-hidden'); 
+                                             document.getElementById('view_backup_list').classList.remove('is-hidden');">
+                                Cancelar
+                            </button>
+                            <button class="button is-warning is-small" type="submit" style="border-radius: 6px; font-weight: 600;">
+                                <span class="icon"><i class="bi bi-cloud-upload"></i></span>
+                                <span>Restaurar</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ====================================================
+                 TELA 2: LISTA DE BACKUPS (Visível por padrão)
+                 ==================================================== -->
+            <div id="view_backup_list" style="animation: fadeIn 0.3s ease;">
+                <?php if (empty($snapshots)): ?>
+                    <div class="notification is-warning is-light" style="border-radius: 8px;">
+                        <span class="icon"><i class="bi bi-exclamation-triangle"></i></span>
+                        <span>Nenhum snapshot disponível.</span>
+                        <p class="mt-2" style="font-size:0.85rem;">
+                            Snapshots são criados automaticamente antes de cada operação ou manualmente pelo botão "Criar" acima.
+                        </p>
+                    </div>
+                <?php else: ?>
+
+                    <?php
+                    if (!function_exists('formataDataRelativa')) {
+                        function formataDataRelativa($dataString) {
+                            if (empty($dataString)) return '-';
+                            $ts = strtotime($dataString);
+                            if (!$ts) return htmlspecialchars($dataString);
+
+                            $hoje = strtotime('today');
+                            $ontem = strtotime('yesterday');
+                            $data_dia = strtotime(date('Y-m-d', $ts));
+                            $hora = date('H:i', $ts);
+
+                            if ($data_dia == $hoje) {
+                                return "<strong style='color: #0ea5e9;'>Hoje</strong> às {$hora}";
+                            } elseif ($data_dia == $ontem) {
+                                return "Ontem às {$hora}";
+                            } else {
+                                return date('d/m/Y H:i', $ts);
+                            }
+                        }
+                    }
+                    ?>
+
+                    <div style="max-height: 320px; overflow-y: auto; border: 1px solid #bae6fd; border-radius: 8px; background: #ffffff;">
+                        <table class="table is-fullwidth is-narrow is-hoverable" style="font-size:0.85rem; margin-bottom: 0; background: transparent;">
+                            <thead style="position: sticky; top: 0; z-index: 10; background: #f0f9ff; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.08);">
+                                <tr>
+                                    <th style="border-bottom: none; color: #0284c7; padding-left: 1rem;">Data/Hora</th>
+                                    <th style="border-bottom: none; color: #0284c7;">Motivo</th>
+                                    <th style="border-bottom: none; color: #0284c7; text-align: center;">Peers</th>
+                                    <th style="border-bottom: none; color: #0284c7; text-align: right; padding-right: 1rem;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($snapshots as $i => $snap): ?>
+                                <?php 
+                                    $is_latest = ($i === 0);
+                                    $row_bg = $is_latest ? 'background-color: #f0fdfa;' : ''; 
+                                ?>
+                                <tr style="<?= $row_bg ?>">
+                                    <td style="vertical-align: middle; white-space: nowrap; padding-left: 1rem;">
+                                        <?= formataDataRelativa($snap['at'] ?? '') ?>
+                                        <?php if ($is_latest): ?>
+                                            <span class="tag is-success is-light is-rounded ml-2" style="font-size: 0.65rem; height: 18px; font-weight: 700;">ATUAL</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    
+                                    <td style="vertical-align: middle; color: #475569;">
+                                        <span style="<?= $is_latest ? 'font-weight: 600;' : '' ?>">
+                                            <?= htmlspecialchars($snap['reason'] ?? '') ?>
+                                        </span>
+                                    </td>
+
+                                    <td style="vertical-align: middle; text-align: center; font-weight: 600;">
+                                        <?= (int)($snap['peers'] ?? 0) ?>
+                                    </td>
+
+                                    <td style="vertical-align: middle; text-align: right; white-space: nowrap; padding-right: 1rem;">
+                                        <form method="post" style="display:inline">
+                                            <input type="hidden" name="acao" value="download_snapshot">
+                                            <input type="hidden" name="snapshot_index" value="<?= $i ?>">
+                                            <button class="button is-small is-info is-light" type="submit" title="Baixar .json" style="padding: 0.2rem 0.5rem; height: 28px; border-radius: 6px;">
+                                                <span class="icon is-small"><i class="bi bi-download"></i></span>
+                                            </button>
+                                        </form>
+
+                                        <?php if (!empty($snap['sql'])): ?>
+                                        <form method="post" style="display:inline" onsubmit="return confirm('⚠️ RESTAURAR backup de <?= htmlspecialchars($snap['at'] ?? '') ?>?\n\nIsso vai:\n• Substituir o wg0.conf\n• Limpar o banco e recriar <?= (int)($snap['peers'] ?? 0) ?> peers\n\nContinuar?')">
+                                            <input type="hidden" name="acao" value="restore_snapshot">
+                                            <input type="hidden" name="snapshot_index" value="<?= $i ?>">
+                                            <button class="button is-small is-warning" type="submit" title="Restaurar Backup" style="padding: 0.2rem 0.5rem; height: 28px; border-radius: 6px; margin-left: 0.2rem;">
+                                                <span class="icon is-small"><i class="bi bi-arrow-counterclockwise"></i></span>
+                                            </button>
+                                        </form>
+                                        <?php else: ?>
+                                        <button class="button is-small is-warning" disabled title="Sem dump SQL" style="padding: 0.2rem 0.5rem; height: 28px; border-radius: 6px; margin-left: 0.2rem; opacity: 0.4;">
+                                            <span class="icon is-small"><i class="bi bi-arrow-counterclockwise"></i></span>
+                                        </button>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
 
 <?php endif; ?>
-          </div>
+			</div>
         </div>
 
 <!-- ========================================
@@ -1937,10 +1983,35 @@ if (!isset($snapshots)) {
 <?php endforeach; ?>
 </div>
 <?php elseif ($tab === 'peers'): ?>
-			<div class="box">
-				<h2 class="title is-4">Peers WireGuard</h2>
 
-				<?php
+	<?php
+	// HELPER: Formatar a data de forma amigável (Visual apenas, não afeta o banco)
+	if (!function_exists('formataDataRelativa')) {
+		function formataDataRelativa($dataString) {
+			if (empty($dataString)) return '-';
+			$ts = strtotime($dataString);
+			if (!$ts) return htmlspecialchars($dataString); // Fallback
+
+			$hoje = strtotime('today');
+			$ontem = strtotime('yesterday');
+			$data_dia = strtotime(date('Y-m-d', $ts));
+			$hora = date('H:i', $ts);
+
+			if ($data_dia == $hoje) {
+				return "<strong style='color: #0ea5e9;'>Hoje</strong> às {$hora}";
+			} elseif ($data_dia == $ontem) {
+				return "Ontem às {$hora}";
+			} else {
+				return date('d/m/Y H:i', $ts);
+			}
+		}
+	}
+	?>
+
+	<div class="box">
+		<h2 class="title is-4">Peers WireGuard</h2>
+
+		<?php
 		$clients = [];
 		if (
 			is_array($list_clients_data)
@@ -1958,9 +2029,9 @@ if (!isset($snapshots)) {
 			}
 		}
 		?>
-	
-		<!-- Filtro, igual “Procurar por / Filtro” da tela de clientes -->
-		<form method="get" class="field is-grouped" style="margin-bottom: 1rem;">
+
+		<!-- Filtro (Mais limpo com as classes CSS novas) -->
+		<form method="get" class="field is-grouped" style="margin-bottom: 1.5rem;">
 			<input type="hidden" name="tab" value="peers">
 
 			<div class="control">
@@ -1992,25 +2063,28 @@ if (!isset($snapshots)) {
 			<div class="control">
 				<button class="button is-dark" type="submit">Filtrar</button>
 			</div>
-			</form>
-				<form method="post" action="?tab=peers" id="form_modal_conf" style="display:none;">
-				  <input type="hidden" name="acao_modal" value="show_conf">
-				  <input type="hidden" name="id_peer" id="modal_conf_id" value="">
-				</form>
+		</form>
 
-				<form method="post" action="?tab=peers" id="form_modal_rsc" style="display:none;">
-				  <input type="hidden" name="acao_modal" value="show_rsc">
-				  <input type="hidden" name="id_peer" id="modal_rsc_id" value="">
-				</form>
+		<!-- Modais invisíveis (Mantido intacto) -->
+		<form method="post" action="?tab=peers" id="form_modal_conf" style="display:none;">
+		  <input type="hidden" name="acao_modal" value="show_conf">
+		  <input type="hidden" name="id_peer" id="modal_conf_id" value="">
+		</form>
 
-				<form method="post" action="?tab=peers" id="form_modal_wgstring" style="display:none;">
-				  <input type="hidden" name="acao_modal" value="show_wgstring">
-				  <input type="hidden" name="id_peer" id="modal_wgstring_id" value="">
-				</form>
-		<!-- Form de seleção em massa, estilo form_combox -->
-<form method="post" action="?tab=peers" id="form_peers">
-	<input type="hidden" name="acao" id="acao_peers" value="bulk_peers">
-	<input type="hidden" name="subacao" id="subacao_peers" value="">
+		<form method="post" action="?tab=peers" id="form_modal_rsc" style="display:none;">
+		  <input type="hidden" name="acao_modal" value="show_rsc">
+		  <input type="hidden" name="id_peer" id="modal_rsc_id" value="">
+		</form>
+
+		<form method="post" action="?tab=peers" id="form_modal_wgstring" style="display:none;">
+		  <input type="hidden" name="acao_modal" value="show_wgstring">
+		  <input type="hidden" name="id_peer" id="modal_wgstring_id" value="">
+		</form>
+
+		<!-- Tabela Principal -->
+		<form method="post" action="?tab=peers" id="form_peers">
+			<input type="hidden" name="acao" id="acao_peers" value="bulk_peers">
+			<input type="hidden" name="subacao" id="subacao_peers" value="">
 
 			<table class="table is-striped is-fullwidth">
 				<thead>
@@ -2033,7 +2107,9 @@ if (!isset($snapshots)) {
 				<tbody>
 				<?php if (!$clients): ?>
 					<tr>
-						<td colspan="12">Nenhum peer retornado pelo socket.</td>
+						<td colspan="11" class="has-text-centered has-text-grey" style="padding: 2rem;">
+							Nenhum peer retornado pelo socket.
+						</td>
 					</tr>
 				<?php else: ?>
 					<?php foreach ($clients as $c): ?>
@@ -2050,77 +2126,74 @@ if (!isset($snapshots)) {
 										   class="peer-checkbox">
 								<?php endif; ?>
 							</td>
-							<td><?php echo $linha ? htmlspecialchars($linha['peer_name']) : '-'; ?></td>
+							<td><strong><?php echo $linha ? htmlspecialchars($linha['peer_name']) : '-'; ?></strong></td>
 							<td><?php echo $linha ? (int)$linha['id_nas'] : '-'; ?></td>
-<td>
-<?php if ($linha): ?>
-    <input class="input ip-input"
-           style="width: 100%; max-width: 260px;"
-           type="text"
-           name="address_inline[<?php echo (int)$linha['id']; ?>]"
-           value="<?php echo htmlspecialchars($linha['ip_wg']); ?>"
-           readonly>
-<?php else: ?>
-    -
-<?php endif; ?>
-</td>
-							<td><?php echo htmlspecialchars($c['allowedIPs']); ?></td>
-							<td><?php echo htmlspecialchars($c['endpoint']); ?></td>
 							<td>
+							<?php if ($linha): ?>
+								<input class="input ip-input"
+									   style="width: 100%; max-width: 180px; height: 28px; font-size: 0.85rem;"
+									   type="text"
+									   name="address_inline[<?php echo (int)$linha['id']; ?>]"
+									   value="<?php echo htmlspecialchars($linha['ip_wg']); ?>"
+									   readonly>
+							<?php else: ?>
+								-
+							<?php endif; ?>
+							</td>
+							<td><code style="font-size:0.75rem; background:#f1f5f9; padding:0.2rem 0.4rem; border-radius:4px;"><?php echo htmlspecialchars($c['allowedIPs']); ?></code></td>
+							<td><span style="font-size:0.85rem; color:#64748b;"><?php echo htmlspecialchars($c['endpoint']); ?></span></td>
+							<td style="font-size:0.85rem; color:#475569;">
 								<?php
+								// Chamada da nova função de data
+								$dt = '';
 								if (!empty($c['latestHandshakeAt'])) {
-									echo htmlspecialchars($c['latestHandshakeAt']);
+									$dt = $c['latestHandshakeAt'];
 								} elseif ($linha && !empty($linha['latest_handshake_at'])) {
-									echo htmlspecialchars($linha['latest_handshake_at']);
-								} else {
-									echo '-';
+									$dt = $linha['latest_handshake_at'];
 								}
+								echo formataDataRelativa($dt);
 								?>
 							</td>
-							<td><?php echo (int)$c['transferRx']; ?></td>
-							<td><?php echo (int)$c['transferTx']; ?></td>
-							<td><?php echo $linha ? htmlspecialchars($linha['status']) : '-'; ?></td>
+							<td style="font-size:0.85rem;"><?php echo (int)$c['transferRx']; ?></td>
+							<td style="font-size:0.85rem;"><?php echo (int)$c['transferTx']; ?></td>
+							
+							<!-- STATUS COM TAGS VIZUAIS -->
 							<td>
+								<?php if ($linha): ?>
+									<?php if ($linha['status'] === 'enabled'): ?>
+										<span class="tag is-success is-light" style="font-weight: 700; font-size: 0.7rem; height: 20px;">enabled</span>
+									<?php else: ?>
+										<span class="tag is-danger is-light" style="font-weight: 700; font-size: 0.7rem; height: 20px;">disabled</span>
+									<?php endif; ?>
+								<?php else: ?>
+									<span class="has-text-grey-light">-</span>
+								<?php endif; ?>
+							</td>
+
+							<!-- AÇÕES (Pílulas Azuis) -->
+							<td style="white-space: nowrap;">
 							  <?php if ($linha && !empty($linha['config_text'])): ?>
-								<!-- .conf -->
-								<a href="?tab=peers&acao=download_conf&id=<?php echo (int)$linha['id']; ?>">.conf</a>
-								<button class="button is-text is-small"
-										type="button"
-										title="Ver e copiar .conf"
-										onclick="abrirConfModal(<?php echo (int)$linha['id']; ?>);">
-								  <span class="icon">
-									<i class="bi-files"></i>
-								  </span>
-								</button>
+								
+								<!-- Botão .conf -->
+								<div style="display: inline-flex; background: #f0f9ff; border-radius: 6px; border: 1px solid #e0f2fe; margin-right: 0.25rem; overflow: hidden; transition: all 0.2s ease;">
+									<a href="?tab=peers&acao=download_conf&id=<?php echo (int)$linha['id']; ?>" style="padding: 0.2rem 0.5rem; color: #0284c7; font-weight: 600; font-size: 0.75rem; text-decoration: none; border-right: 1px solid #e0f2fe; background: #f0f9ff;" title="Baixar">.conf</a>
+									<a href="#" onclick="abrirConfModal(<?php echo (int)$linha['id']; ?>); return false;" style="padding: 0.2rem 0.4rem; color: #0ea5e9; background: #f0f9ff; display: flex; align-items: center;" title="Ver"><i class="bi-files"></i></a>
+								</div>
 
-								|
+								<!-- Botão .rsc -->
+								<div style="display: inline-flex; background: #f0f9ff; border-radius: 6px; border: 1px solid #e0f2fe; margin-right: 0.25rem; overflow: hidden; transition: all 0.2s ease;">
+									<a href="?tab=peers&acao=download_rsc&id=<?php echo (int)$linha['id']; ?>" style="padding: 0.2rem 0.5rem; color: #0284c7; font-weight: 600; font-size: 0.75rem; text-decoration: none; border-right: 1px solid #e0f2fe; background: #f0f9ff;" title="Baixar">.rsc</a>
+									<a href="#" onclick="abrirRscModal(<?php echo (int)$linha['id']; ?>); return false;" style="padding: 0.2rem 0.4rem; color: #0ea5e9; background: #f0f9ff; display: flex; align-items: center;" title="Ver"><i class="bi-files"></i></a>
+								</div>
 
-								<!-- .rsc -->
-								<a href="?tab=peers&acao=download_rsc&id=<?php echo (int)$linha['id']; ?>">.rsc</a>
-								<button class="button is-text is-small"
-										type="button"
-										title="Ver e copiar .rsc"
-										onclick="abrirRscModal(<?php echo (int)$linha['id']; ?>);">
-								  <span class="icon">
-									<i class="bi-files"></i>
-								  </span>
-								</button>
-
-								|
-
-								<!-- wgimport string -->
-								<a href="?tab=peers&acao=download_wgstring&id=<?php echo (int)$linha['id']; ?>">wgimport string</a>
-								<button class="button is-text is-small"
-										type="button"
-										title="Ver e copiar wgimport string"
-										onclick="abrirWgStringModal(<?php echo (int)$linha['id']; ?>);">
-								  <span class="icon">
-									<i class="bi-files"></i>
-								  </span>
-								</button>
+								<!-- Botão wgimport -->
+								<div style="display: inline-flex; background: #f0f9ff; border-radius: 6px; border: 1px solid #e0f2fe; overflow: hidden; transition: all 0.2s ease;">
+									<a href="?tab=peers&acao=download_wgstring&id=<?php echo (int)$linha['id']; ?>" style="padding: 0.2rem 0.5rem; color: #0284c7; font-weight: 600; font-size: 0.75rem; text-decoration: none; border-right: 1px solid #e0f2fe; background: #f0f9ff;" title="Baixar">wgimport</a>
+									<a href="#" onclick="abrirWgStringModal(<?php echo (int)$linha['id']; ?>); return false;" style="padding: 0.2rem 0.4rem; color: #0ea5e9; background: #f0f9ff; display: flex; align-items: center;" title="Ver"><i class="bi-files"></i></a>
+								</div>
 
 							  <?php else: ?>
-								-
+								<span class="has-text-grey-light">-</span>
 							  <?php endif; ?>
 							</td>
 						</tr>
@@ -2129,81 +2202,80 @@ if (!isset($snapshots)) {
 				</tbody>
 			</table>
 
-<!-- Barra de ações em massa, estilo ícones MK-AUTH -->
-<div class="block" id="acao_selecao_peers">
-  <nav class="level is-mobile">
-    <div class="level-left">
+			<!-- Barra de ações em massa (Ícones Gigantes Padrão MK-AUTH) -->
+			<div class="block" id="acao_selecao_peers" style="margin-top: 1.5rem;">
+			  <nav class="level is-mobile">
+				<div class="level-left" style="gap: 15px;">
 
-      <!-- Entrar em modo edição de IPs (lápis) -->
-      <div class="level-item" id="wrap_enter_edit_ip">
-        <a href="#" id="btn_enter_edit_ip" title="Editar IP dos peers selecionados">
-          <span class="icon has-text-info">
-            <i class="bi-pencil-square" style="font-size: 30px"></i>
-          </span>
-        </a>
-      </div>
+				  <!-- Entrar em modo edição de IPs (lápis azul) -->
+				  <div class="level-item" id="wrap_enter_edit_ip">
+					<a href="#" id="btn_enter_edit_ip" title="Editar IP dos peers selecionados">
+					  <span class="icon has-text-info">
+						<i class="bi-pencil-square" style="font-size: 30px"></i>
+					  </span>
+					</a>
+				  </div>
 
-      <!-- Salvar IP dos selecionados (disquetão) -->
-      <div class="level-item" id="wrap_save_ip_bulk" style="display:none;">
-        <a href="#" id="btn_save_ip_bulk" title="Salvar IP dos peers selecionados">
-          <span class="icon has-text-info">
-            <i class="bi-save-fill" style="font-size: 30px"></i>
-          </span>
-        </a>
-      </div>
+				  <!-- Salvar IP (Check Verde - Antigo Disquete) -->
+				  <div class="level-item" id="wrap_save_ip_bulk" style="display:none;">
+					<a href="#" id="btn_save_ip_bulk" title="Confirmar novo IP">
+					  <span class="icon has-text-success">
+						<i class="bi-check-circle-fill" style="font-size: 30px"></i>
+					  </span>
+					</a>
+				  </div>
 
-      <!-- Cancelar edição de IPs (X) -->
-      <div class="level-item" id="wrap_cancel_edit_ip" style="display:none;">
-        <a href="#" id="btn_cancel_edit_ip" title="Cancelar edição de IPs">
-          <span class="icon has-text-danger">
-            <i class="bi-x-circle-fill" style="font-size: 30px"></i>
-          </span>
-        </a>
-      </div>
+				  <!-- Cancelar edição de IPs (X vermelho) -->
+				  <div class="level-item" id="wrap_cancel_edit_ip" style="display:none;">
+					<a href="#" id="btn_cancel_edit_ip" title="Cancelar edição">
+					  <span class="icon has-text-danger">
+						<i class="bi-x-circle-fill" style="font-size: 30px"></i>
+					  </span>
+					</a>
+				  </div>
 
-      <!-- Habilitar peers -->
-      <div class="level-item">
-        <a href="#" title="Habilitar peers selecionados"
-           onclick="return submitPeersBulk('enable');">
-          <span class="icon has-text-success">
-            <i class="bi-power" style="font-size: 30px"></i>
-          </span>
-        </a>
-      </div>
+				  <!-- Habilitar peers (Ligar verde) -->
+				  <div class="level-item">
+					<a href="#" title="Habilitar peers selecionados" onclick="return submitPeersBulk('enable');">
+					  <span class="icon has-text-success">
+						<i class="bi-power" style="font-size: 30px"></i>
+					  </span>
+					</a>
+				  </div>
 
-      <!-- Desabilitar peers -->
-      <div class="level-item">
-        <a href="#" title="Desabilitar peers selecionados"
-           onclick="return submitPeersBulk('disable');">
-          <span class="icon has-text-danger">
-            <i class="bi-power" style="font-size: 30px"></i>
-          </span>
-        </a>
-      </div>
+				  <!-- Desabilitar peers (Desligar vermelho) -->
+				  <div class="level-item">
+					<a href="#" title="Desabilitar peers selecionados" onclick="return submitPeersBulk('disable');">
+					  <span class="icon has-text-danger">
+						<i class="bi-power" style="font-size: 30px"></i>
+					  </span>
+					</a>
+				  </div>
 
-      <!-- Excluir peers -->
-      <div class="level-item">
-        <a href="#" title="Excluir peers selecionados"
-           onclick="return submitPeersBulk('delete');">	
-          <span class="icon has-text-danger">
-            <i class="bi-trash3-fill" style="font-size: 30px"></i>
-          </span>
-        </a>
-      </div>
+				  <!-- Excluir peers (Lixeira vermelha) -->
+				  <div class="level-item">
+					<a href="#" title="Excluir peers selecionados" onclick="return submitPeersBulk('delete');">
+					  <span class="icon has-text-danger">
+						<i class="bi-trash3-fill" style="font-size: 30px"></i>
+					  </span>
+					</a>
+				  </div>
 
-    </div>
-  </nav>
+				</div>
+			  </nav>
 
-  <!-- select escondido pra bulk_peers continuar igual -->
-  <select name="bulk_action" id="bulk_action_peers" style="display:none;">
-    <option value="">-</option>
-    <option value="disable">disable</option>
-    <option value="enable">enable</option>
-    <option value="delete">delete</option>
-  </select>
-</div>
+			  <!-- select escondido pra bulk_peers continuar igual -->
+			  <select name="bulk_action" id="bulk_action_peers" style="display:none;">
+				<option value="">-</option>
+				<option value="disable">disable</option>
+				<option value="enable">enable</option>
+				<option value="delete">delete</option>
+			  </select>
+			</div>
+			
 		</form>
 
+		<!-- Lógica de Paginação (Mantida Intacta) -->
 		<?php
 		$total_pages = ($per_page > 0) ? (int)ceil($total_rows / $per_page) : 1;
 		if ($total_pages < 1) {
@@ -2224,7 +2296,7 @@ if (!isset($snapshots)) {
 		?>
 
 		<?php if ($total_pages > 1): ?>
-			<nav class="pagination" role="navigation" aria-label="pagination" style="margin-top: 1rem;">
+			<nav class="pagination" role="navigation" aria-label="pagination" style="margin-top: 1.5rem;">
 				<a class="pagination-previous <?php echo $page <= 1 ? 'is-disabled' : ''; ?>"
 				   href="<?php echo $page <= 1 ? '#' : build_peer_url(max(1, $page - 1)); ?>">
 					Anterior
@@ -2247,6 +2319,7 @@ if (!isset($snapshots)) {
 		<?php endif; ?>
 	</div>
 
+<!-- Os mesmos Modais para ver texto mantidos intactos -->
 <?php if (!empty($_SESSION['wg_last_conf'])): ?>
 <div class="modal is-active" id="modal_conf">
   <div class="modal-background" onclick="fecharConfModal();"></div>
@@ -2307,7 +2380,6 @@ if (!isset($snapshots)) {
   <button class="modal-close is-large" aria-label="close" onclick="fecharWgStringModal();"></button>
 </div>
 <?php endif; ?>
-
 
 <?php elseif ($tab === 'provisionar'): ?>
 	<div class="box">
@@ -2437,56 +2509,105 @@ Depois você pode ajustar o address individualmente na aba "Peers".
 	</div>
 
 <?php elseif ($tab === 'criar'): ?>
-    <div class="box">
-        <h2 class="title is-4">Criar Peer WireGuard (VPS / PC / Celular)</h2>
+    <div class="box" style="border-top: 4px solid #3e8ed0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+        
+        <!-- CABEÇALHO DA ABA -->
+        <div class="columns is-vcentered mb-4" style="border-bottom: 1px solid #f0f0f0; padding-bottom: 15px;">
+            <div class="column is-narrow">
+                <span class="icon is-large has-text-info" style="font-size: 2.5rem;">
+                    <i class="bi bi-hdd-network-fill"></i>
+                </span>
+            </div>
+            <div class="column">
+                <h2 class="title is-4 mb-1" style="color: #0f172a;">Nova Conexão Externa (VPS / Infra)</h2>
+                <p class="subtitle is-6 has-text-grey">Integre Servidores Linux, Monitoramento (Zabbix/Grafana) ou Cloud ao MK-AUTH</p>
+            </div>
+        </div>
 
-        <p class="help">
-            Este formulário cria um peer genérico, não vinculado a nenhum NAS do MK-AUTH.
-            Use para VPS, desktops, notebooks, celulares, etc.
-        </p>
+        <div class="columns">
+            <!-- COLUNA DO FORMULÁRIO -->
+            <div class="column is-6">
+                <form method="post" action="?tab=criar">
+                    <input type="hidden" name="acao" value="criar_peer">
+                    <!-- id_nas = 0 indica que é um peer genérico (VPS/Linux), não um Mikrotik -->
+                    <input type="hidden" name="id_nas" value="0">
 
-        <form method="post" action="?tab=criar">
-            <input type="hidden" name="acao" value="criar_peer">
-            <!-- id_nas = 0 => peer genérico/VPS -->
-            <input type="hidden" name="id_nas" value="0">
+                    <div class="field">
+                        <label class="label has-text-weight-bold">Identificação do Servidor</label>
+                        <div class="control has-icons-left">
+                            <input class="input" 
+                                   type="text" 
+                                   name="peer_name" 
+                                   placeholder="Ex: Zabbix-Cloud, VPS-Oracle, Backup-Offsite" 
+                                   required>
+                            <span class="icon is-small is-left has-text-grey">
+                                <i class="bi bi-server"></i>
+                            </span>
+                        </div>
+                        <p class="help">Nome amigável sem espaços especiais. Exclusivo para identificação interna do túnel.</p>
+                    </div>
 
-            <div class="field">
-                <label class="label">Nome do Peer</label>
-                <div class="control">
-                    <input class="input"
-                           type="text"
-                           name="peer_name"
-                           placeholder="ex.: VPS-Oracle-SP, Notebook-Joao, iPhone-Maria"
-                           required>
-                </div>
-                <p class="help">
-                    Apenas para identificação interna; precisa ser único entre os peers.
-                </p>
+                    <div class="field mt-4">
+                        <label class="label has-text-weight-bold">Endereço IP (WireGuard Address)</label>
+                        <div class="control has-icons-left">
+                            <input class="input" 
+                                   type="text" 
+                                   name="address" 
+                                   placeholder="Ex: 10.66.66.50/32" 
+                                   required>
+                            <span class="icon is-small is-left has-text-grey">
+                                <i class="bi bi-diagram-3-fill"></i>
+                            </span>
+                        </div>
+                        <p class="help">
+                            Endereço IPv4 que este servidor terá dentro da VPN (ex.: <code>10.66.66.15/32</code>).<br>
+                            Deve pertencer à mesma rede configurada na interface wg0.
+                        </p>
+                    </div>
+
+                    <div class="field mt-5">
+                        <div class="control">
+                            <button class="button is-info is-medium" type="submit" style="width: 100%; font-weight: 600;">
+                                <span class="icon"><i class="bi bi-file-earmark-code-fill"></i></span>
+                                <span>Gerar Configuração (.conf)</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
 
-            <div class="field">
-                <label class="label">Endereço WireGuard (address)</label>
-                <div class="control">
-                    <input class="input"
-                           type="text"
-                           name="address"
-                           placeholder="10.66.66.X/32"
-                           required>
+            <!-- COLUNA DE INSTRUÇÕES (HELP) -->
+            <div class="column is-6">
+                <div class="notification is-info is-light" style="height: 100%; border-radius: 8px;">
+                    <p class="title is-6 mb-3" style="color: #0c4a6e;">
+                        <i class="bi bi-terminal-fill" style="margin-right: 8px;"></i> Como conectar sua VPS?
+                    </p>
+                    <div class="content is-small" style="color: #334155;">
+                        <p>Este assistente gera um arquivo <strong>.conf padrão do Linux</strong>, ideal para interligar infraestruturas ao seu servidor MK-AUTH de forma segura, sem envolver roteadores Mikrotik.</p>
+                        
+                        <p class="has-text-weight-bold mb-1 mt-3">Passo a Passo (Debian/Ubuntu):</p>
+                        <ol style="margin-top: 0;">
+                            <li>Preencha os dados e clique em Gerar Configuração.</li>
+                            <li>Na aba <strong>Peers</strong>, faça o download do arquivo <code>.conf</code> do novo servidor.</li>
+                            <li>Na sua VPS Linux, instale o pacote: <br>
+                                <code style="background: rgba(255,255,255,0.7); color: #0284c7;">apt install wireguard resolvconf -y</code>
+                            </li>
+                            <li>Envie o arquivo baixado para o diretório: <br>
+                                <code style="background: rgba(255,255,255,0.7); color: #0284c7;">/etc/wireguard/wg0.conf</code>
+                            </li>
+                            <li>Ative o túnel para iniciar com o sistema: <br>
+                                <code style="background: rgba(255,255,255,0.7); color: #0284c7;">systemctl enable --now wg-quick@wg0</code>
+                            </li>
+                        </ol>
+                        
+                        <div class="mt-3" style="border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 10px;">
+                            <span class="tag is-info is-rounded">Casos de Uso</span>
+                            <span class="is-size-7 ml-2">Monitoramento Zabbix/Grafana, Banco Offsite, APIs.</span>
+                        </div>
+                    </div>
                 </div>
-                <p class="help">
-                    Use um IP dentro da faixa configurada na interface wg0 (ex.: 10.66.66.0/24),
-                    sempre em formato IPv4/CIDR, como 10.66.66.10/32.
-                </p>
             </div>
-
-            <div class="field">
-                <div class="control">
-                    <button class="button is-primary" type="submit">
-                        Criar peer
-                    </button>
-                </div>
-            </div>
-        </form>
+        </div>
     </div>
 <?php endif; ?>
 </div>
@@ -2507,7 +2628,7 @@ Depois você pode ajustar o address individualmente na aba "Peers".
       <?php else: ?>
         <?php $v = $version_data['data']; ?>
 
-        <figure class="image" style="max-width: 260px; margin: 0 auto 0.5rem auto;">
+        <figure class="image" style="max-width: 320px; margin: 0 auto 0.5rem auto;">
           <img src="wireguard-logo.png" alt="WireGuard">
         </figure>
 
@@ -2538,6 +2659,44 @@ Depois você pode ajustar o address individualmente na aba "Peers".
       <?php endif; ?>
     </div>
   </div>
+</div>
+<!-- MODAL DE CONFIGURAÇÃO DE NAT / ENDPOINT -->
+<div class="modal" id="modal_nat">
+    <div class="modal-background" onclick="this.parentElement.classList.remove('is-active')"></div>
+    <div class="modal-card" style="max-width: 450px;">
+        <header class="modal-card-head" style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+            <p class="modal-card-title is-size-5" style="font-weight: 700; color: #0f172a;">
+                <i class="bi bi-globe" style="color: #0ea5e9;"></i> IP Público / NAT
+            </p>
+            <button class="delete" aria-label="close" onclick="document.getElementById('modal_nat').classList.remove('is-active')"></button>
+        </header>
+        <section class="modal-card-body">
+            <div class="notification is-warning is-light" style="font-size: 0.85rem; padding: 1rem;">
+                <i class="bi bi-exclamation-triangle-fill"></i> 
+                <strong>Aviso:</strong> O Daemon detectou o IP <code><?php echo htmlspecialchars($ip_detectado); ?></code> automaticamente.<br><br>
+                Só force um IP/Domínio manual se o seu servidor estiver atrás de um firewall (NAT/CGNAT) e você tiver uma regra de encaminhamento válida.
+            </div>
+
+            <form method="post" action="?tab=status">
+                <input type="hidden" name="acao" value="salvar_nat">
+                
+                <div class="field">
+                    <label class="label is-small">IP Fixo ou DDNS (Opcional)</label>
+                    <div class="control has-icons-left">
+                        <input class="input" type="text" name="ip_nat" placeholder="Ex: 200.20.20.5 ou vpn.provedor.com" value="<?php echo htmlspecialchars($ip_forcado); ?>">
+                        <span class="icon is-small is-left"><i class="bi bi-hdd-network"></i></span>
+                    </div>
+                    <p class="help">Deixe o campo <strong>em branco</strong> para voltar ao modo de Detecção Automática.</p>
+                </div>
+                
+                <div class="field mt-4">
+                    <button type="submit" class="button is-info is-fullwidth" style="font-weight: 600;">
+                        <i class="bi bi-save mr-2"></i> Salvar Configuração
+                    </button>
+                </div>
+            </form>
+        </section>
+    </div>
 </div>
 
 <?php include('../../baixo.php'); ?>

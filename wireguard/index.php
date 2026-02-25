@@ -1003,7 +1003,7 @@ ps aux | grep wg-mkauthd | grep -v grep
 ls -l /run/wgmkauth.sock
 
 # Iniciar daemon
-/etc/init.d/wg-mkauthd start
+service wg-mkauthd start
 
 # Verificar logs
 tail -50 /var/log/wg-mkauthd.log</code></pre>
@@ -1032,13 +1032,15 @@ endif;
      ======================================== -->
 <?php if ($tab === 'status'): ?>
 
-<div class="box">
-    <div class="columns">
+<div class="box" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 1.5rem; background: #fafafa;">
+    
+    <!-- GRID 3-4-5 para dar mais espaço ao Backup e menos à Interface -->
+    <div class="columns is-align-items-stretch">
 
-<!-- ========================================
-     COLUNA 1: STATUS (33%)
-     ======================================== -->
-<div class="column is-one-third">
+        <!-- ========================================
+             COLUNA 1: STATUS (is-3 = 25% da tela)
+             ======================================== -->
+        <div class="column is-3">
 
 <?php
 // ========================================
@@ -1229,412 +1231,347 @@ if (!is_array($status_data)) {
 }
 ?>
 
-<!-- CARD ÚNICO COMPACTO (WIDGET DE STATUS ULTRA SLIM) -->
-<div style="background: <?php echo $vs['bg_gradient']; ?>; 
-            border-left: <?php echo $vs['border']; ?>; 
-            border-radius: 12px; 
-            padding: 1.25rem; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-    
-    <!-- SEÇÃO SUPERIOR: Plug + Status vertical -->
-    <div style="text-align: center; margin-bottom: 0.75rem;">
-        <!-- ÍCONE PLUG (MENOR) -->
-        <div style="position: relative; display: inline-block;">
-            <i class="<?php echo $vs['icon_main']; ?>" 
-               style="font-size: 2.5rem; 
-                      color: <?php echo $vs['icon_color']; ?>; 
-                      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.2));"></i>
+        <!-- CARD ÚNICO COMPACTO (FLEX ATIVADO) -->
+        <div style="height: 100%; display: flex; flex-direction: column; background: <?php echo $vs['bg_gradient']; ?>; 
+                    border-left: <?php echo $vs['border']; ?>; 
+                    border-radius: 12px; 
+                    padding: 1.25rem; 
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
             
-            <?php if ($vs['icon_overlay']): ?>
-                <i class="<?php echo $vs['icon_overlay']; ?>" 
-                   style="position: absolute; 
-                          top: 50%; 
-                          left: 50%; 
-                          transform: translate(-50%, -50%);
-                          font-size: 1.25rem; 
-                          color: white; 
-                          text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-                          font-weight: bold;"></i>
-            <?php endif; ?>
-        </div>
-        
-        <!-- TÍTULO -->
-        <h2 class="title is-6" style="margin-top: 0.25rem; margin-bottom: 0; font-size: 0.95rem; color: <?php echo $vs['title_color']; ?>;">
-            <?php echo htmlspecialchars($state['text']); ?>
-        </h2>
-        
-        <!-- DETALHE -->
-        <?php if ($state['detail']): ?>
-            <p style="margin-top: 0.25rem; color: #666; font-size: 0.8rem;">
-                <?php echo htmlspecialchars($state['detail']); ?>
-            </p>
-        <?php endif; ?>
-    </div>
-    
-    <!-- CONTEÚDO DINÂMICO (COM DADOS DO DAEMON) -->
-    <?php if ($state['show_details'] && $state['data']): ?>
-        <?php $d = $state['data']; ?>
-        <div style="background: rgba(255,255,255,0.4); border-radius: 10px; padding: 0.5rem 0.75rem; margin-bottom: 1rem;">
-
-            <!-- 1. STATUS -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
-                <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Status:</span>
-                <span class="tag <?php echo !empty($d['if_up']) ? 'is-success' : 'is-warning'; ?>" style="font-weight: 700; font-size: 0.7rem; height: 20px; padding: 0 0.5rem;">
-                    <?php echo !empty($d['if_up']) ? 'UP' : 'DOWN'; ?>
-                </span>
-            </div>
-
-            <!-- 2. INTERFACE -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
-                <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Interface:</span>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($d['interface'] ?? 'wg0'); ?></span>
-                    <a href="#" onclick="copiarTexto('<?php echo htmlspecialchars($d['interface'] ?? 'wg0'); ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
+            <!-- SEÇÃO SUPERIOR: Plug + Status vertical -->
+            <div style="text-align: center; margin-bottom: 0.75rem;">
+                <div style="position: relative; display: inline-block;">
+                    <i class="<?php echo $vs['icon_main']; ?>" 
+                       style="font-size: 2.5rem; color: <?php echo $vs['icon_color']; ?>; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.2));"></i>
+                    <?php if ($vs['icon_overlay']): ?>
+                        <i class="<?php echo $vs['icon_overlay']; ?>" 
+                           style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.25rem; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.5); font-weight: bold;"></i>
+                    <?php endif; ?>
                 </div>
+                <h2 class="title is-6" style="margin-top: 0.25rem; margin-bottom: 0; font-size: 0.95rem; color: <?php echo $vs['title_color']; ?>;">
+                    <?php echo htmlspecialchars($state['text']); ?>
+                </h2>
+                <?php if ($state['detail']): ?>
+                    <p style="margin-top: 0.25rem; color: #666; font-size: 0.8rem;"><?php echo htmlspecialchars($state['detail']); ?></p>
+                <?php endif; ?>
             </div>
-
-            <!-- 3. IP PÚBLICO -->
-            <?php 
-            // Lógica Lê apenas da Linha 1 da wg_ramais
-            $ip_forcado = '';
-            $rsCfg = $mysqli->query("SELECT endpoint FROM wg_ramais ORDER BY id ASC LIMIT 1");
-            if ($rsCfg && $rowCfg = $rsCfg->fetch_assoc()) {
-                $ip_forcado = trim($rowCfg['endpoint'] ?? '');
-            }
-            $ip_detectado = $d['public_ip'] ?? 'N/A';
             
-            // Define o que vai aparecer na tela
-            $ip_mostrar = ($ip_forcado !== '') ? $ip_forcado : $ip_detectado;
-            $tag_tipo = ($ip_forcado !== '') ? '<span class="tag is-warning is-light" style="font-size: 0.6rem; padding: 0 4px; height: 16px; margin-right: 4px;">NAT Forçado</span>' : '<span class="tag is-info is-light" style="font-size: 0.6rem; padding: 0 4px; height: 16px; margin-right: 4px;">Auto</span>';
-            ?>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
-                <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">IP Público:</span>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <?php echo $tag_tipo; ?>
-                    <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($ip_mostrar); ?></span>
-                    <a href="#" onclick="document.getElementById('modal_nat').classList.add('is-active'); return false;" style="color: #0ea5e9; font-size: 0.9rem;" title="Configurar IP de Borda (NAT)">
-                        <i class="bi-gear-fill"></i>
-                    </a>
-                </div>
-            </div>
-
-            <!-- 4. PORTA -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; <?php echo !empty($d['wg_address']) ? 'border-bottom: 1px solid rgba(0,0,0,0.06);' : ''; ?>">
-                <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Porta:</span>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo isset($d['port']) ? (int)$d['port'] : 'N/A'; ?></span>
-                    <a href="#" onclick="copiarTexto('<?php echo isset($d['port']) ? (int)$d['port'] : 'N/A'; ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
-                </div>
-            </div>
-
-            <!-- 5. NETWORK (Opcional) -->
-            <?php if (!empty($d['wg_address'])): ?>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0;">
-                <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Network:</span>
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($d['wg_address']); ?></span>
-                    <a href="#" onclick="copiarTexto('<?php echo htmlspecialchars($d['wg_address']); ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
-                </div>
-            </div>
-            <?php endif; ?>
-
-        </div>
-    
-    <!-- INFORMAÇÕES ESTÁTICAS (QUANDO OFF) -->
-    <?php elseif (!empty($state['show_info'])): ?>
-        <div style="background: rgba(255,255,255,0.4); border-radius: 10px; padding: 0.5rem 0.75rem; margin-bottom: 1rem;">
-            <?php $total = count($state['show_info']); $i = 0; ?>
-            <?php foreach ($state['show_info'] as $info): ?>
-                <?php $i++; $is_last = ($i === $total); ?>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; <?php echo !$is_last ? 'border-bottom: 1px solid rgba(0,0,0,0.06);' : ''; ?>">
-                    <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;"><?php echo htmlspecialchars($info['label']); ?>:</span>
-                    
-                    <div style="display: flex; align-items: center; gap: 0.4rem;">
-                        <?php if ($info['type'] === 'code'): ?>
-                            <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($info['value']); ?></span>
-                            <a href="#" onclick="copiarTexto('<?php echo htmlspecialchars($info['value']); ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
-                        <?php elseif ($info['type'] === 'tag-danger'): ?>
-                            <span class="tag is-danger" style="font-weight: 700; font-size: 0.7rem; height: 20px; padding: 0 0.5rem;"><?php echo htmlspecialchars($info['value']); ?></span>
-                        <?php elseif ($info['type'] === 'tag-warning'): ?>
-                            <span class="tag is-warning" style="font-weight: 700; font-size: 0.7rem; height: 20px; padding: 0 0.5rem;"><?php echo htmlspecialchars($info['value']); ?></span>
-                        <?php else: ?>
-                            <span style="font-size: 0.85rem; color: #0f172a; font-weight: 500;"><?php echo htmlspecialchars($info['value']); ?></span>
-                        <?php endif; ?>
+            <!-- CONTEÚDO DINÂMICO -->
+            <?php if ($state['show_details'] && $state['data']): ?>
+                <?php $d = $state['data']; ?>
+                <div style="background: rgba(255,255,255,0.4); border-radius: 10px; padding: 0.5rem 0.75rem; margin-bottom: 1rem;">
+                    <!-- STATUS -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Status:</span>
+                        <span class="tag <?php echo !empty($d['if_up']) ? 'is-success' : 'is-warning'; ?>" style="font-weight: 700; font-size: 0.7rem; height: 20px; padding: 0 0.5rem;">
+                            <?php echo !empty($d['if_up']) ? 'UP' : 'DOWN'; ?>
+                        </span>
                     </div>
+
+                    <!-- INTERFACE -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Interface:</span>
+                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                            <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($d['interface'] ?? 'wg0'); ?></span>
+                            <a href="#" onclick="copiarTexto('<?php echo htmlspecialchars($d['interface'] ?? 'wg0'); ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
+                        </div>
+                    </div>
+
+                    <!-- IP PÚBLICO -->
+                    <?php 
+                    $ip_forcado = '';
+                    $rsCfg = $mysqli->query("SELECT endpoint FROM wg_ramais ORDER BY id ASC LIMIT 1");
+                    if ($rsCfg && $rowCfg = $rsCfg->fetch_assoc()) {
+                        $ip_forcado = trim($rowCfg['endpoint'] ?? '');
+                    }
+                    $ip_detectado = $d['public_ip'] ?? 'N/A';
+                    $ip_mostrar = ($ip_forcado !== '') ? $ip_forcado : $ip_detectado;
+                    $tag_tipo = ($ip_forcado !== '') ? '<span class="tag is-warning is-light" style="font-size: 0.6rem; padding: 0 4px; height: 16px; margin-right: 4px;">NAT Forçado</span>' : '<span class="tag is-info is-light" style="font-size: 0.6rem; padding: 0 4px; height: 16px; margin-right: 4px;">Auto</span>';
+                    ?>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">IP Público:</span>
+                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                            <?php echo $tag_tipo; ?>
+                            <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($ip_mostrar); ?></span>
+                            <a href="#" onclick="document.getElementById('modal_nat').classList.add('is-active'); return false;" style="color: #0ea5e9; font-size: 0.9rem;" title="Configurar IP de Borda (NAT)">
+                                <i class="bi-gear-fill"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- PORTA -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; <?php echo !empty($d['wg_address']) ? 'border-bottom: 1px solid rgba(0,0,0,0.06);' : ''; ?>">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Porta:</span>
+                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                            <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo isset($d['port']) ? (int)$d['port'] : 'N/A'; ?></span>
+                            <a href="#" onclick="copiarTexto('<?php echo isset($d['port']) ? (int)$d['port'] : 'N/A'; ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
+                        </div>
+                    </div>
+
+                    <!-- NETWORK -->
+                    <?php if (!empty($d['wg_address'])): ?>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0;">
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Network:</span>
+                        <div style="display: flex; align-items: center; gap: 0.4rem;">
+                            <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($d['wg_address']); ?></span>
+                            <a href="#" onclick="copiarTexto('<?php echo htmlspecialchars($d['wg_address']); ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
                 </div>
-            <?php endforeach; ?>
+            
+            <!-- INFORMAÇÕES ESTÁTICAS -->
+            <?php elseif (!empty($state['show_info'])): ?>
+                <div style="background: rgba(255,255,255,0.4); border-radius: 10px; padding: 0.5rem 0.75rem; margin-bottom: 1rem;">
+                    <?php $total = count($state['show_info']); $i = 0; ?>
+                    <?php foreach ($state['show_info'] as $info): ?>
+                        <?php $i++; $is_last = ($i === $total); ?>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; <?php echo !$is_last ? 'border-bottom: 1px solid rgba(0,0,0,0.06);' : ''; ?>">
+                            <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;"><?php echo htmlspecialchars($info['label']); ?>:</span>
+                            <div style="display: flex; align-items: center; gap: 0.4rem;">
+                                <?php if ($info['type'] === 'code'): ?>
+                                    <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($info['value']); ?></span>
+                                    <a href="#" onclick="copiarTexto('<?php echo htmlspecialchars($info['value']); ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar"><i class="bi-clipboard"></i></a>
+                                <?php elseif ($info['type'] === 'tag-danger'): ?>
+                                    <span class="tag is-danger" style="font-weight: 700; font-size: 0.7rem; height: 20px; padding: 0 0.5rem;"><?php echo htmlspecialchars($info['value']); ?></span>
+                                <?php elseif ($info['type'] === 'tag-warning'): ?>
+                                    <span class="tag is-warning" style="font-weight: 700; font-size: 0.7rem; height: 20px; padding: 0 0.5rem;"><?php echo htmlspecialchars($info['value']); ?></span>
+                                <?php else: ?>
+                                    <span style="font-size: 0.85rem; color: #0f172a; font-weight: 500;"><?php echo htmlspecialchars($info['value']); ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+            
+            <!-- BOTÕES -->
+            <?php if ($state['show_buttons']): ?>
+                <div class="buttons is-centered mt-auto" style="margin-bottom: 0;">
+                    <form method="post" style="display:inline; margin: 0;">
+                        <input type="hidden" name="acao" value="server-down">
+                        <button class="button is-danger is-small" type="submit" style="border-radius: 8px; font-weight: 600;">
+                            <span class="icon is-small"><i class="bi bi-power"></i></span><span>Desligar</span>
+                        </button>
+                    </form>
+
+                    <form method="post" style="display:inline; margin: 0;">
+                        <input type="hidden" name="acao" value="server-up">
+                        <button class="button is-success is-small" type="submit" style="border-radius: 8px; font-weight: 600;">
+                            <span class="icon is-small"><i class="bi bi-play-fill"></i></span><span>Ligar</span>
+                        </button>
+                    </form>
+                </div>
+            <?php endif; ?>
         </div>
-    <?php endif; ?>
-    
-    <!-- BOTÕES (LIGAR/DESLIGAR) -->
-    <?php if ($state['show_buttons']): ?>
-        <div class="buttons is-centered" style="margin-bottom: 0;">
-            <form method="post" style="display:inline; margin: 0;">
-                <input type="hidden" name="acao" value="server-down">
-                <button class="button is-danger is-small" type="submit" style="border-radius: 8px; font-weight: 600;">
-                    <span class="icon is-small"><i class="bi bi-power"></i></span>
-                    <span>Desligar</span>
-                </button>
-            </form>
+        </div> <!-- fim da coluna 1 -->
 
-            <form method="post" style="display:inline; margin: 0;">
-                <input type="hidden" name="acao" value="server-up">
-                <button class="button is-success is-small" type="submit" style="border-radius: 8px; font-weight: 600;">
-                    <span class="icon is-small"><i class="bi bi-play-fill"></i></span>
-                    <span>Ligar</span>
-                </button>
-            </form>
-        </div>
-    <?php endif; ?>
-</div>
+        <!-- ========================================
+             COLUNA 2: CONFIGURAÇÃO WG0 (is-4 = 33% da tela)
+             ======================================== -->
+        <div class="column is-4">
+          
+          <!-- Card 2.1: wg0.conf snapshot -->
+          <div class="box" id="card_wg_conf_view" style="height: 100%; display: flex; flex-direction: column;">
+            <div class="level" style="margin-bottom:0.5rem;">
+              <div class="level-left">
+                <div class="level-item">
+                  <h2 class="title is-5" style="margin-bottom:0;">wg0.conf (snapshot)</h2>
+                </div>
+              </div>
 
-</div>
-<!-- fim da coluna 1 -->
+              <div class="level-right">
+                <div class="level-item">
+                  <?php if ($daemon_ok): ?>
+                    <button class="button is-small is-link" type="button"
+                            onclick="document.getElementById('card_wg_conf_view').classList.add('is-hidden');
+                                     document.getElementById('card_wg_conf_edit').classList.remove('is-hidden');">
+                      Ações
+                    </button>
+                  <?php else: ?>
+                    <button class="button is-small is-light" type="button" disabled>
+                      <span class="icon"><i class="bi-lock"></i></span><span>Ações</span>
+                    </button>
+                  <?php endif; ?>
+                </div>
+              </div>
+            </div>
 
-<!-- ========================================
-     COLUNA 2: CONFIGURAÇÃO WG0 (33%)
-     ======================================== -->
-<div class="column">
+            <?php if (!$daemon_ok): ?>
+              <div class="notification is-danger" style="margin-bottom: 0;">
+                <p class="has-text-weight-bold mb-2">
+                  <span class="icon"><i class="bi bi-x-circle-fill"></i></span>
+                  Daemon não está respondendo
+                </p>
+                <p class="mb-3">
+                  Não foi possível conectar ao <code>wg-mkauthd</code> via socket.
+                </p>
+                <p>💡 <strong>Ação:</strong> Inicie o daemon primeiro:</p>
+                <pre style="background:#fff3cd; padding:0.5rem; border-radius:4px; margin-top:0.5rem;"><code>service wg-mkauthd start</code></pre>
+              </div>
 
-  <!-- Card 2.1: wg0.conf snapshot -->
-  <div class="box" id="card_wg_conf_view">
-    <div class="level" style="margin-bottom:0.5rem;">
-      <div class="level-left">
-        <div class="level-item">
-          <h2 class="title is-5" style="margin-bottom:0;">wg0.conf (snapshot)</h2>
-        </div>
-      </div>
+            <?php elseif ($interface_configurada): ?>
+              <!-- CAIXA PRETA MÁGICA -->
+              <pre style="flex: 1 1 0%; min-height: 250px; overflow: auto; font-size:0.85rem; background:#111; color:#eee; padding:1rem; border-radius:8px; margin-bottom: 0;"><code><?php echo htmlspecialchars($wg_conf_raw); ?></code></pre>
 
-      <div class="level-right">
-        <div class="level-item">
-          <?php if ($daemon_ok): ?>
-            <button class="button is-small is-link" type="button"
-                    onclick="document.getElementById('card_wg_conf_view').classList.add('is-hidden');
-                             document.getElementById('card_wg_conf_edit').classList.remove('is-hidden');">
-              Ações
-            </button>
-          <?php else: ?>
-            <button class="button is-small is-light" type="button" disabled>
-              <span class="icon"><i class="bi-lock"></i></span>
-              <span>Ações</span>
-            </button>
-          <?php endif; ?>
-        </div>
-      </div>
-    </div>
+            <?php else: ?>
+              <div class="notification is-info" style="margin-bottom: 0;">
+                <p class="has-text-weight-bold mb-2">
+                  <span class="icon"><i class="bi bi-info-circle-fill"></i></span>
+                  Primeira instalação
+                </p>
+                <p>
+                  A interface <strong>wg0</strong> ainda não está configurada.
+                  Clique em <strong>"Ações"</strong> para criar a interface.
+                </p>
+              </div>
+            <?php endif; ?>
+          </div> 
 
-    <?php if (!$daemon_ok): ?>
-      <!-- ============================================
-           Estado 1: 🔴 VERMELHO — Daemon offline
-           ============================================ -->
-      <div class="notification is-danger">
-        <p class="has-text-weight-bold mb-2">
-          <span class="icon"><i class="bi bi-x-circle-fill"></i></span>
-          Daemon não está respondendo
-        </p>
-        <p class="mb-3">
-          Não foi possível conectar ao <code>wg-mkauthd</code> via socket.
-        </p>
-        <p>💡 <strong>Ação:</strong> Inicie o daemon primeiro:</p>
-        <pre style="background:#fff3cd; padding:0.5rem; border-radius:4px; margin-top:0.5rem;"><code>service wg-mkauthd start</code></pre>
-      </div>
+          <!-- Card 2.2: AÇÕES -->
+          <div class="box is-hidden" id="card_wg_conf_edit" style="height: 100%; display: flex; flex-direction: column;">
+            <div class="level" style="margin-bottom:0.5rem;">
+              <div class="level-left">
+                <div class="level-item"><h2 class="title is-5" style="margin-bottom:0;">Ações wg0</h2></div>
+              </div>
+              <div class="level-right">
+                <div class="level-item">
+                  <button class="button is-small" type="button"
+                          onclick="document.getElementById('card_wg_conf_edit').classList.add('is-hidden');
+                                   document.getElementById('card_wg_conf_view').classList.remove('is-hidden');">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
 
-    <?php elseif ($interface_configurada): ?>
-      <!-- ============================================
-           Estado 2/3: 🟡 AMARELO — wg0.conf existe
-           (interface UP ou DOWN, tanto faz)
-           ============================================ -->
-      <pre style="max-height:420px; overflow:auto; font-size:0.85rem; background:#111; color:#eee; padding:0.75rem; border-radius:6px;"><code><?php echo htmlspecialchars($wg_conf_raw); ?></code></pre>
+            <?php if (!$daemon_ok): ?>
+              <div class="notification is-danger" style="margin-bottom: 0;">
+                <button class="delete" onclick="location.reload()"></button>
+                <p class="is-size-5 has-text-weight-bold mb-3">
+                  <span class="icon"><i class="bi bi-x-circle-fill"></i></span>
+                  Daemon não está respondendo
+                </p>
+                <p class="mb-3">
+                  O daemon <code>wg-mkauthd</code> não está em execução ou não está acessível via socket.
+                </p>
+                <p class="mb-3">Inicie o daemon antes de configurar o WireGuard.</p>
+                <div class="buttons mt-auto mb-0">
+                  <button class="button is-danger is-light" type="button"
+                          onclick="document.getElementById('card_wg_conf_edit').classList.add('is-hidden');
+                                   document.getElementById('card_wg_conf_view').classList.remove('is-hidden');">
+                    <span class="icon"><i class="bi bi-x-lg"></i></span>
+                    <span>Fechar</span>
+                  </button>
+                </div>
+              </div>
 
-    <?php else: ?>
-      <!-- ============================================
-           Estado 4: 🔵 AZUL — wg0.conf NÃO existe
-           (única condição onde CRIAR aparece)
-           ============================================ -->
-      <div class="notification is-info">
-        <p class="has-text-weight-bold mb-2">
-          <span class="icon"><i class="bi bi-info-circle-fill"></i></span>
-          Primeira instalação
-        </p>
-        <p>
-          A interface <strong>wg0</strong> ainda não está configurada.
-          Clique em <strong>"Ações"</strong> para criar a interface.
-        </p>
-      </div>
+            <?php elseif (!$interface_configurada): ?>
+              <div class="notification is-info">
+                <p class="is-size-5 has-text-weight-bold mb-3">
+                  <span class="icon"><i class="bi bi-info-circle-fill"></i></span>
+                  Primeira instalação
+                </p>
+                <p class="mb-3">
+                  A interface <strong>wg0</strong> ainda não está configurada.
+                  Clique em <strong>"Criar"</strong> para gerar a chave do servidor,
+                  criar o <code>wg0.conf</code> do zero e iniciar o WireGuard.
+                </p>
+              </div>
 
-    <?php endif; ?>
-  </div> <!-- fim card_wg_conf_view -->
+              <form method="post" action="?tab=status" style="display: flex; flex-direction: column; flex-grow: 1;" onsubmit="return confirm('Criar interface wg0 com essa rede/porta?');">
+                <input type="hidden" name="acao" value="create_server">
+                
+                <div class="field">
+                  <label class="label">Endereço da Interface (Address)</label>
+                  <div class="control is-flex" style="gap:.5rem; flex-wrap:wrap;">
+                    <input class="input" style="max-width:260px;" type="text" name="wg_network_v4" value="10.66.66.1/24" required>
+                    <button class="button is-small is-info" type="button" onclick="wgRandomPrivate24();" style="height: 40px;">
+                      <span class="icon"><i class="bi-shuffle"></i></span>
+                      <span>Random /24</span>
+                    </button>
+                  </div>
+                  <p class="help">
+                    Endereço IPv4/CIDR da interface wg0 (primeiro host da rede).
+                    Ex.: <code>10.50.0.1/24</code>, <code>172.20.10.1/24</code>, <code>192.168.77.1/24</code>
+                  </p>
+                </div>
 
-  <!-- Card 2.2: AÇÕES (escondido por padrão) -->
-  <div class="box is-hidden" id="card_wg_conf_edit">
-    <div class="level" style="margin-bottom:0.5rem;">
-      <div class="level-left">
-        <div class="level-item">
-          <h2 class="title is-5" style="margin-bottom:0;">Ações wg0</h2>
-        </div>
-      </div>
-      <div class="level-right">
-        <div class="level-item">
-          <button class="button is-small" type="button"
-                  onclick="document.getElementById('card_wg_conf_edit').classList.add('is-hidden');
-                           document.getElementById('card_wg_conf_view').classList.remove('is-hidden');">
-            Cancelar
-          </button>
-        </div>
-      </div>
-    </div>
+                <div class="field">
+                  <label class="label">Porta de escuta (ListenPort)</label>
+                  <div class="control">
+                    <input class="input" type="number" name="wg_port" min="1" max="65535" value="51820" required>
+                  </div>
+                  <p class="help">Porta UDP para escutar conexões WireGuard (padrão: 51820)</p>
+                </div>
 
-    <?php if (!$daemon_ok): ?>
-      <!-- ============================================
-           Estado 1: 🔴 VERMELHO — Daemon offline
-           ============================================ -->
-      <div class="notification is-danger">
-        <button class="delete" onclick="location.reload()"></button>
-        <p class="is-size-5 has-text-weight-bold mb-3">
-          <span class="icon"><i class="bi bi-x-circle-fill"></i></span>
-          Daemon não está respondendo
-        </p>
-        <p class="mb-3">
-          O daemon <code>wg-mkauthd</code> não está em execução ou não está acessível via socket.
-        </p>
-        <p class="mb-3">Inicie o daemon antes de configurar o WireGuard.</p>
-        <div class="buttons">
-          <button class="button is-danger is-light" type="button"
-                  onclick="document.getElementById('card_wg_conf_edit').classList.add('is-hidden');
-                           document.getElementById('card_wg_conf_view').classList.remove('is-hidden');">
-            <span class="icon"><i class="bi bi-x-lg"></i></span>
-            <span>Fechar</span>
-          </button>
-        </div>
-      </div>
+                <div class="field mt-auto mb-0">
+                  <div class="control">
+                    <button class="button is-success is-fullwidth" type="submit">
+                      <span class="icon"><i class="bi-plus-circle-fill"></i></span>
+                      <span>Criar interface wg0</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
 
-    <?php elseif (!$interface_configurada): ?>
-      <!-- ============================================
-           Estado 4: 🔵 AZUL — CRIAR (wg0.conf não existe)
-           ============================================ -->
-      <div class="notification is-info">
-        <p class="is-size-5 has-text-weight-bold mb-3">
-          <span class="icon"><i class="bi bi-info-circle-fill"></i></span>
-          Primeira instalação
-        </p>
-        <p class="mb-3">
-          A interface <strong>wg0</strong> ainda não está configurada.
-          Clique em <strong>"Criar"</strong> para gerar a chave do servidor,
-          criar o <code>wg0.conf</code> do zero e iniciar o WireGuard.
-        </p>
-      </div>
+            <?php else: ?>
+              <div class="notification is-warning">
+                <p class="is-size-5 has-text-weight-bold mb-3">
+                  <span class="icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
+                  RESET DO SERVIDOR WIREGUARD
+                </p>
+                <p class="mb-3">Esta ação irá:</p>
+                <ul>
+                  <li><strong>Gerar nova keypair</strong> do servidor</li>
+                  <li><strong>Recriar wg0.conf</strong> com os novos parâmetros</li>
+                  <li><strong>ZERAR todos os peers</strong> da tabela <code>wg_ramais</code></li>
+                </ul>
+                <p class="has-text-danger has-text-weight-bold mt-3">
+                  ⚠️ Operação irreversível!
+                </p>
+              </div>
 
-      <form method="post" action="?tab=status"
-            onsubmit="return confirm('Criar interface wg0 com essa rede/porta?');">
-        <input type="hidden" name="acao" value="create_server">
+        	  <form method="post" action="?tab=status" style="display: flex; flex-direction: column; flex-grow: 1;" onsubmit="return confirmReset();">
+                <input type="hidden" name="acao" value="reset_server">
+                
+                <div class="field">
+                  <label class="label">Nova Rede da Interface (Address)</label>
+                  <div class="control is-flex" style="gap:.5rem; flex-wrap:wrap;">
+                    <input class="input" style="max-width:260px;" type="text" name="wg_network_v4_reset" value="<?php echo htmlspecialchars($current_network ?: '10.66.66.1/24'); ?>" required>
+                    <button class="button is-small is-info" type="button" onclick="wgRandomPrivate24();" style="height: 40px;">
+                      <span class="icon"><i class="bi-shuffle"></i></span>
+                      <span>Random /24</span>
+                    </button>
+                  </div>
+                </div>
 
-        <div class="field">
-          <label class="label">Endereço da Interface (Address)</label>
-          <div class="control is-flex" style="gap:.5rem; flex-wrap:wrap;">
-            <input class="input" style="max-width:260px;"
-                   type="text"
-                   name="wg_network_v4"
-                   placeholder="10.66.66.1/24"
-                   value="10.66.66.1/24"
-                   required>
-            <button class="button is-small is-info" type="button" onclick="wgRandomPrivate24();">
-              <span class="icon"><i class="bi-shuffle"></i></span>
-              <span>Random /24</span>
-            </button>
-          </div>
-          <p class="help">
-            Endereço IPv4/CIDR da interface wg0 (primeiro host da rede).
-            Ex.: <code>10.50.0.1/24</code>, <code>172.20.10.1/24</code>, <code>192.168.77.1/24</code>
-          </p>
-        </div>
+                <div class="field">
+                  <label class="label">Nova Porta</label>
+                  <div class="control">
+                    <input class="input" type="number" name="wg_port_reset" min="1" max="65535" value="<?php echo $current_port ?: 51820; ?>" required>
+                  </div>
+                </div>
 
-        <div class="field">
-          <label class="label">Porta de escuta (ListenPort)</label>
-          <div class="control">
-            <input class="input" type="number" name="wg_port"
-                   min="1" max="65535" value="51820" required>
-          </div>
-          <p class="help">Porta UDP para escutar conexões WireGuard (padrão: 51820)</p>
-        </div>
+                <div class="field mt-auto mb-0">
+                  <div class="control">
+                    <button class="button is-warning is-fullwidth" type="submit">
+                      <span class="icon"><i class="bi-arrow-clockwise"></i></span>
+                      <span>Resetar servidor WireGuard</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            <?php endif; ?>
+          </div> 
+        </div> <!-- fim da coluna 2 -->
 
-        <div class="field">
-          <div class="control">
-            <button class="button is-success" type="submit">
-              <span class="icon"><i class="bi-plus-circle-fill"></i></span>
-              <span>Criar interface wg0</span>
-            </button>
-          </div>
-        </div>
-      </form>
-
-    <?php else: ?>
-      <!-- ============================================
-           Estado 2/3: 🟡 AMARELO — RESET (wg0.conf existe)
-           (interface UP ou DOWN, tanto faz)
-           ============================================ -->
-      <div class="notification is-warning">
-        <p class="is-size-5 has-text-weight-bold mb-3">
-          <span class="icon"><i class="bi bi-exclamation-triangle-fill"></i></span>
-          RESET DO SERVIDOR WIREGUARD
-        </p>
-        <p class="mb-3">Esta ação irá:</p>
-        <ul>
-          <li><strong>Gerar nova keypair</strong> do servidor</li>
-          <li><strong>Recriar wg0.conf</strong> com os novos parâmetros</li>
-          <li><strong>ZERAR todos os peers</strong> da tabela <code>wg_ramais</code></li>
-        </ul>
-        <p class="has-text-danger has-text-weight-bold mt-3">
-          ⚠️ Operação irreversível!
-        </p>
-      </div>
-
-		<form method="post" action="?tab=status"
-			  onsubmit="return confirmReset();">
-        <input type="hidden" name="acao" value="reset_server">
-
-        <div class="field">
-          <label class="label">Nova Rede da Interface (Address)</label>
-          <div class="control is-flex" style="gap:.5rem; flex-wrap:wrap;">
-            <input class="input" style="max-width:260px;"
-                   type="text"
-                   name="wg_network_v4_reset"
-                   placeholder="10.66.66.1/24"
-                   value="<?php echo htmlspecialchars($current_network ?: '10.66.66.1/24'); ?>"
-                   required>
-            <button class="button is-small is-info" type="button" onclick="wgRandomPrivate24();">
-              <span class="icon"><i class="bi-shuffle"></i></span>
-              <span>Random /24</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label class="label">Nova Porta</label>
-          <div class="control">
-            <input class="input" type="number" name="wg_port_reset"
-                   min="1" max="65535"
-                   value="<?php echo $current_port ?: 51820; ?>"
-                   required>
-          </div>
-        </div>
-
-        <div class="field">
-          <div class="control">
-            <button class="button is-warning" type="submit">
-              <span class="icon"><i class="bi-arrow-clockwise"></i></span>
-              <span>Resetar servidor WireGuard</span>
-            </button>
-          </div>
-        </div>
-      </form>
-
-    <?php endif; ?>
-
-  </div> <!-- fim card_wg_conf_edit -->
-</div> <!-- fim da coluna 2 -->
-        <!-- Coluna 3: Backups -->
-        <div class="column">
-          <div class="box">
+        <!-- ========================================
+             COLUNA 3: BACKUPS (is-5 = 42% da tela)
+             ======================================== -->
+        <div class="column is-5">
+          <div class="box" style="height: 100%; display: flex; flex-direction: column;">
             <h2 class="title is-5">
                 <span class="icon"><i class="bi bi-clock-history"></i></span>
                 <span>Backup & Restore</span>
@@ -1646,11 +1583,7 @@ if (!isset($snapshots)) {
 }
 ?>
 <?php if (!$daemon_ok): ?>
-            <!-- ============================================
-                 Estado 1: 🔴 DAEMON OFFLINE
-                 Sem acesso ao socket, não dá pra fazer nada
-                 ============================================ -->
-            <div class="notification is-danger is-light">
+            <div class="notification is-danger is-light mb-0">
                 <p class="has-text-weight-bold mb-2">
                     <span class="icon"><i class="bi bi-x-circle-fill"></i></span>
                     Backups indisponíveis
@@ -1662,28 +1595,13 @@ if (!isset($snapshots)) {
             </div>
 
 <?php elseif (!$interface_configurada): ?>
-            <!-- ============================================
-                 Estado 4: 🔵 PRIMEIRA INSTALAÇÃO
-                 wg0.conf NÃO existe no disco
-                 Oferecer importação de backup JSON
-                 ============================================ -->
-            <div style="background: linear-gradient(135deg, #d6eaf8 0%, #aed6f1 100%);
-                        border-left: 4px solid #3298dc;
-                        border-radius: 8px;
-                        padding: 1.5rem;
-                        box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-
-                <!-- Ícone central -->
+            <div style="background: linear-gradient(135deg, #d6eaf8 0%, #aed6f1 100%); border-left: 4px solid #3298dc; border-radius: 8px; padding: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.1); flex-grow: 1; display: flex; flex-direction: column;">
+                
                 <div style="text-align: center; margin-bottom: 1rem;">
                     <div style="position: relative; display: inline-block;">
-                        <i class="bi bi-cloud-upload" 
-                           style="font-size: 3rem; 
-                                  color: #3298dc; 
-                                  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.15));"></i>
+                        <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #3298dc; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.15));"></i>
                     </div>
-                    <h3 class="title is-5 has-text-info" style="margin-top: 0.5rem; margin-bottom: 0;">
-                        Restaurar de Backup
-                    </h3>
+                    <h3 class="title is-5 has-text-info" style="margin-top: 0.5rem; margin-bottom: 0;">Restaurar de Backup</h3>
                 </div>
 
                 <div class="content" style="font-size: 0.9rem;">
@@ -1700,26 +1618,22 @@ if (!isset($snapshots)) {
                     </ul>
                 </div>
 
-                <form method="post" action="?tab=status" enctype="multipart/form-data"
-                      onsubmit="return confirmImportBackup();">
+                <form method="post" action="?tab=status" enctype="multipart/form-data" class="mt-auto" onsubmit="return confirmImportBackup();">
                     <input type="hidden" name="acao" value="import_backup_file">
-
                     <div class="field">
                         <div class="file has-name is-info is-fullwidth">
                             <label class="file-label">
-                                <input class="file-input" type="file" name="backup_conf"
-                                       accept=".json" required
+                                <input class="file-input" type="file" name="backup_conf" accept=".json" required
                                        onchange="this.closest('.file').querySelector('.file-name').textContent = this.files[0]?.name || 'Nenhum arquivo';">
                                 <span class="file-cta">
                                     <span class="file-icon"><i class="bi bi-folder2-open"></i></span>
                                     <span class="file-label">Escolher .json</span>
                                 </span>
-                                <span class="file-name">Nenhum arquivo</span>
+                                <span class="file-name" style="background:#fff;">Nenhum arquivo</span>
                             </label>
                         </div>
                     </div>
-
-                    <div class="field">
+                    <div class="field mb-0">
                         <button class="button is-info is-fullwidth" type="submit">
                             <span class="icon"><i class="bi bi-arrow-counterclockwise"></i></span>
                             <span>Importar e Restaurar Tudo</span>
@@ -1727,7 +1641,7 @@ if (!isset($snapshots)) {
                     </div>
                 </form>
 
-                <article class="message is-info is-small" style="margin-top: 1rem;">
+                <article class="message is-info is-small" style="margin-top: 1rem; margin-bottom: 0;">
                     <div class="message-body" style="padding: 0.75rem;">
                         <strong>💡 Não tem backup?</strong><br>
                         Use o card ao lado (<strong>Ações</strong>) para criar uma interface do zero.
@@ -1737,54 +1651,40 @@ if (!isset($snapshots)) {
             </div>
 
 <?php else: ?>
-            <!-- ============================================
-                 Estado 2/3: 🟢🟡 INTERFACE EXISTE (UP ou DOWN)
-                 ============================================ -->
-
             <?php
             // Lê snapshots do interface_text (FIFO de 5)
             $snapshots = [];
             if (!$erro_db) {
-                $rs = $mysqli->query(
-                    "SELECT interface_text FROM wg_ramais WHERE interface_text IS NOT NULL AND interface_text != '' LIMIT 1"
-                );
+                $rs = $mysqli->query("SELECT interface_text FROM wg_ramais WHERE interface_text IS NOT NULL AND interface_text != '' LIMIT 1");
                 if ($rs && ($rowSnap = $rs->fetch_assoc()) && !empty($rowSnap['interface_text'])) {
                     $snapshots = json_decode($rowSnap['interface_text'], true) ?: [];
                 }
             }
             ?>
 
-            <!-- BARRA DE FERRAMENTAS (Info + Botões) -->
+            <!-- BARRA DE FERRAMENTAS -->
             <div class="is-flex is-justify-content-space-between is-align-items-center mb-3">
                 <p class="help mb-0" style="font-size: 0.85rem;">
                     Últimos <strong><?php echo count($snapshots); ?></strong> de 5 snapshots.
                 </p>
-                
                 <div class="buttons are-small mb-0">
-                    <!-- BOTÃO CRIAR BACKUP MANUAL -->
-                    <form method="post" action="?tab=status" style="display:inline;" onsubmit="return confirm('Criar um snapshot do estado atual agora?');">
+                    <form method="post" action="?tab=status" style="display:inline; margin-right: 0.5rem;" onsubmit="return confirm('Criar um snapshot do estado atual agora?');">
                         <input type="hidden" name="acao" value="create_snapshot">
                         <button class="button is-success is-light" type="submit" title="Salvar estado atual">
-                            <span class="icon"><i class="bi bi-camera"></i></span>
-                            <span style="font-weight: 600;">Criar</span>
+                            <span class="icon"><i class="bi bi-camera"></i></span><span style="font-weight: 600;">Criar</span>
                         </button>
                     </form>
-
-                    <!-- BOTÃO IMPORTAR BACKUP -->
                     <button class="button is-link is-light" type="button" title="Restaurar de um arquivo .json"
                             onclick="document.getElementById('view_backup_list').classList.add('is-hidden'); 
                                      document.getElementById('view_backup_import').classList.remove('is-hidden');">
-                        <span class="icon"><i class="bi bi-upload"></i></span>
-                        <span style="font-weight: 600;">Importar</span>
+                        <span class="icon"><i class="bi bi-upload"></i></span><span style="font-weight: 600;">Importar</span>
                     </button>
                 </div>
             </div>
 
-            <!-- ====================================================
-                 TELA 1: FORMULÁRIO DE IMPORTAÇÃO (Oculto por padrão)
-                 ==================================================== -->
-            <div id="view_backup_import" class="is-hidden" style="animation: fadeIn 0.3s ease;">
-                <div class="notification is-info is-light" style="border-radius: 8px; padding: 1.25rem;">
+            <!-- TELA 1: IMPORTAÇÃO -->
+            <div id="view_backup_import" class="is-hidden" style="animation: fadeIn 0.3s ease; height: 100%;">
+                <div class="notification is-info is-light" style="border-radius: 8px; padding: 1.25rem; height: 100%; display: flex; flex-direction: column; margin-bottom: 0;">
                     <div class="is-flex is-justify-content-space-between is-align-items-center mb-2">
                         <strong style="color: #0284c7;"><i class="bi bi-folder2-open mr-1"></i> Importar snapshot (.json)</strong>
                         <button class="delete is-small" type="button" 
@@ -1797,10 +1697,8 @@ if (!isset($snapshots)) {
                         <span class="has-text-danger mt-1 is-block">⚠️ Apenas arquivos <code>.json</code> são aceitos.</span>
                     </p>
 
-                    <form method="post" action="?tab=status" enctype="multipart/form-data"
-                          onsubmit="return confirmImportBackup();">
+                    <form method="post" action="?tab=status" enctype="multipart/form-data" class="mt-auto" style="display: flex; flex-direction: column;" onsubmit="return confirmImportBackup();">
                         <input type="hidden" name="acao" value="import_backup_file">
-
                         <div class="field">
                             <div class="file has-name is-small is-fullwidth is-info">
                                 <label class="file-label">
@@ -1814,28 +1712,22 @@ if (!isset($snapshots)) {
                                 </label>
                             </div>
                         </div>
-
                         <div class="buttons is-right mt-3 mb-0">
                             <button class="button is-small" type="button" style="border-radius: 6px;"
                                     onclick="document.getElementById('view_backup_import').classList.add('is-hidden'); 
-                                             document.getElementById('view_backup_list').classList.remove('is-hidden');">
-                                Cancelar
-                            </button>
+                                             document.getElementById('view_backup_list').classList.remove('is-hidden');">Cancelar</button>
                             <button class="button is-warning is-small" type="submit" style="border-radius: 6px; font-weight: 600;">
-                                <span class="icon"><i class="bi bi-cloud-upload"></i></span>
-                                <span>Restaurar</span>
+                                <span class="icon"><i class="bi bi-cloud-upload"></i></span><span>Restaurar</span>
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- ====================================================
-                 TELA 2: LISTA DE BACKUPS (Visível por padrão)
-                 ==================================================== -->
-            <div id="view_backup_list" style="animation: fadeIn 0.3s ease;">
+            <!-- TELA 2: LISTA DE BACKUPS -->
+            <div id="view_backup_list" style="animation: fadeIn 0.3s ease; display: flex; flex-direction: column; flex-grow: 1;">
                 <?php if (empty($snapshots)): ?>
-                    <div class="notification is-warning is-light" style="border-radius: 8px;">
+                    <div class="notification is-warning is-light mb-0" style="border-radius: 8px;">
                         <span class="icon"><i class="bi bi-exclamation-triangle"></i></span>
                         <span>Nenhum snapshot disponível.</span>
                         <p class="mt-2" style="font-size:0.85rem;">
@@ -1843,31 +1735,20 @@ if (!isset($snapshots)) {
                         </p>
                     </div>
                 <?php else: ?>
-
                     <?php
                     if (!function_exists('formataDataRelativa')) {
                         function formataDataRelativa($dataString) {
                             if (empty($dataString)) return '-';
                             $ts = strtotime($dataString);
                             if (!$ts) return htmlspecialchars($dataString);
-
-                            $hoje = strtotime('today');
-                            $ontem = strtotime('yesterday');
-                            $data_dia = strtotime(date('Y-m-d', $ts));
-                            $hora = date('H:i', $ts);
-
-                            if ($data_dia == $hoje) {
-                                return "<strong style='color: #0ea5e9;'>Hoje</strong> às {$hora}";
-                            } elseif ($data_dia == $ontem) {
-                                return "Ontem às {$hora}";
-                            } else {
-                                return date('d/m/Y H:i', $ts);
-                            }
+                            $hoje = strtotime('today'); $ontem = strtotime('yesterday'); $data_dia = strtotime(date('Y-m-d', $ts)); $hora = date('H:i', $ts);
+                            if ($data_dia == $hoje) return "<strong style='color: #0ea5e9;'>Hoje</strong> às {$hora}";
+                            elseif ($data_dia == $ontem) return "Ontem às {$hora}";
+                            else return date('d/m/Y H:i', $ts);
                         }
                     }
                     ?>
-
-                    <div style="max-height: 320px; overflow-y: auto; border: 1px solid #bae6fd; border-radius: 8px; background: #ffffff;">
+					<div class="table-container" style="flex: 1 1 auto; max-height: 235px; overflow-y: auto; border: 1px solid #bae6fd; border-radius: 8px; background: #ffffff; margin-bottom: 0;">
                         <table class="table is-fullwidth is-narrow is-hoverable" style="font-size:0.85rem; margin-bottom: 0; background: transparent;">
                             <thead style="position: sticky; top: 0; z-index: 10; background: #f0f9ff; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.08);">
                                 <tr>
@@ -1879,49 +1760,26 @@ if (!isset($snapshots)) {
                             </thead>
                             <tbody>
                                 <?php foreach ($snapshots as $i => $snap): ?>
-                                <?php 
-                                    $is_latest = ($i === 0);
-                                    $row_bg = $is_latest ? 'background-color: #f0fdfa;' : ''; 
-                                ?>
+                                <?php $is_latest = ($i === 0); $row_bg = $is_latest ? 'background-color: #f0fdfa;' : ''; ?>
                                 <tr style="<?= $row_bg ?>">
                                     <td style="vertical-align: middle; white-space: nowrap; padding-left: 1rem;">
                                         <?= formataDataRelativa($snap['at'] ?? '') ?>
-                                        <?php if ($is_latest): ?>
-                                            <span class="tag is-success is-light is-rounded ml-2" style="font-size: 0.65rem; height: 18px; font-weight: 700;">ATUAL</span>
-                                        <?php endif; ?>
+                                        <?php if ($is_latest): ?><span class="tag is-success is-light is-rounded ml-1" style="font-size: 0.6rem; height: 18px; font-weight: 700;">ATUAL</span><?php endif; ?>
                                     </td>
-                                    
-                                    <td style="vertical-align: middle; color: #475569;">
-                                        <span style="<?= $is_latest ? 'font-weight: 600;' : '' ?>">
-                                            <?= htmlspecialchars($snap['reason'] ?? '') ?>
-                                        </span>
-                                    </td>
-
-                                    <td style="vertical-align: middle; text-align: center; font-weight: 600;">
-                                        <?= (int)($snap['peers'] ?? 0) ?>
-                                    </td>
-
+                                    <td style="vertical-align: middle; color: #475569;"><span style="<?= $is_latest ? 'font-weight: 600;' : '' ?>"><?= htmlspecialchars($snap['reason'] ?? '') ?></span></td>
+                                    <td style="vertical-align: middle; text-align: center; font-weight: 600;"><?= (int)($snap['peers'] ?? 0) ?></td>
                                     <td style="vertical-align: middle; text-align: right; white-space: nowrap; padding-right: 1rem;">
                                         <form method="post" style="display:inline">
-                                            <input type="hidden" name="acao" value="download_snapshot">
-                                            <input type="hidden" name="snapshot_index" value="<?= $i ?>">
-                                            <button class="button is-small is-info is-light" type="submit" title="Baixar .json" style="padding: 0.2rem 0.5rem; height: 28px; border-radius: 6px;">
-                                                <span class="icon is-small"><i class="bi bi-download"></i></span>
-                                            </button>
+                                            <input type="hidden" name="acao" value="download_snapshot"><input type="hidden" name="snapshot_index" value="<?= $i ?>">
+                                            <button class="button is-small is-info is-light" type="submit" title="Baixar .json" style="padding: 0.2rem 0.5rem; height: 28px; border-radius: 6px;"><span class="icon is-small"><i class="bi bi-download"></i></span></button>
                                         </form>
-
                                         <?php if (!empty($snap['sql'])): ?>
                                         <form method="post" style="display:inline" onsubmit="return confirm('⚠️ RESTAURAR backup de <?= htmlspecialchars($snap['at'] ?? '') ?>?\n\nIsso vai:\n• Substituir o wg0.conf\n• Limpar o banco e recriar <?= (int)($snap['peers'] ?? 0) ?> peers\n\nContinuar?')">
-                                            <input type="hidden" name="acao" value="restore_snapshot">
-                                            <input type="hidden" name="snapshot_index" value="<?= $i ?>">
-                                            <button class="button is-small is-warning" type="submit" title="Restaurar Backup" style="padding: 0.2rem 0.5rem; height: 28px; border-radius: 6px; margin-left: 0.2rem;">
-                                                <span class="icon is-small"><i class="bi bi-arrow-counterclockwise"></i></span>
-                                            </button>
+                                            <input type="hidden" name="acao" value="restore_snapshot"><input type="hidden" name="snapshot_index" value="<?= $i ?>">
+                                            <button class="button is-small is-warning" type="submit" title="Restaurar Backup" style="padding: 0.2rem 0.5rem; height: 28px; border-radius: 6px; margin-left: 0.2rem;"><span class="icon is-small"><i class="bi bi-arrow-counterclockwise"></i></span></button>
                                         </form>
                                         <?php else: ?>
-                                        <button class="button is-small is-warning" disabled title="Sem dump SQL" style="padding: 0.2rem 0.5rem; height: 28px; border-radius: 6px; margin-left: 0.2rem; opacity: 0.4;">
-                                            <span class="icon is-small"><i class="bi bi-arrow-counterclockwise"></i></span>
-                                        </button>
+                                        <button class="button is-small is-warning" disabled title="Sem dump SQL" style="padding: 0.2rem 0.5rem; height: 28px; border-radius: 6px; margin-left: 0.2rem; opacity: 0.4;"><span class="icon is-small"><i class="bi bi-arrow-counterclockwise"></i></span></button>
                                         <?php endif; ?>
                                     </td>
                                 </tr>
@@ -1931,56 +1789,43 @@ if (!isset($snapshots)) {
                     </div>
                 <?php endif; ?>
             </div>
-
 <?php endif; ?>
-			</div>
-        </div>
+          </div>
+        </div> <!-- fim da coluna 3 -->
+
+    </div> <!-- fim do div columns principal -->
+</div> <!-- fim do div box principal -->
 
 <!-- ========================================
      MODAIS DOS SNAPSHOTS (fora da coluna)
      ======================================== -->
 <?php foreach ($snapshots as $i => $snap): ?>
 <div class="modal" id="snap_modal_<?php echo $i; ?>">
-    <div class="modal-background"
-         onclick="document.getElementById('snap_modal_<?php echo $i; ?>').classList.remove('is-active');"></div>
+    <div class="modal-background" onclick="document.getElementById('snap_modal_<?php echo $i; ?>').classList.remove('is-active');"></div>
     <div class="modal-content" style="max-width:700px;">
         <div class="box">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
-                <h3 class="title is-5" style="margin-bottom:0;">
-                    Snapshot #<?php echo $i + 1; ?> — <?php echo htmlspecialchars($snap['at'] ?? ''); ?>
-                </h3>
-                <button class="delete" aria-label="close"
-                        onclick="document.getElementById('snap_modal_<?php echo $i; ?>').classList.remove('is-active');"></button>
+                <h3 class="title is-5" style="margin-bottom:0;">Snapshot #<?php echo $i + 1; ?> — <?php echo htmlspecialchars($snap['at'] ?? ''); ?></h3>
+                <button class="delete" aria-label="close" onclick="document.getElementById('snap_modal_<?php echo $i; ?>').classList.remove('is-active');"></button>
             </div>
-
             <div class="field">
                 <label class="label is-small">
-                    Motivo: <span class="tag is-info is-light"><?php echo htmlspecialchars($snap['reason'] ?? '—'); ?></span>
-                    &bull;
+                    Motivo: <span class="tag is-info is-light"><?php echo htmlspecialchars($snap['reason'] ?? '—'); ?></span> &bull;
                     Peers: <span class="tag is-link"><?php echo (int)($snap['peers'] ?? substr_count($snap['conf'] ?? '', '[Peer]')); ?></span>
                 </label>
             </div>
-
-            <textarea class="textarea" id="snap_textarea_<?php echo $i; ?>" rows="15" readonly
-                      style="font-family:monospace; font-size:0.85rem; background:#111; color:#eee;"><?php
-                echo htmlspecialchars($snap['conf'] ?? '');
-            ?></textarea>
-
+            <textarea class="textarea" id="snap_textarea_<?php echo $i; ?>" rows="15" readonly style="font-family:monospace; font-size:0.85rem; background:#111; color:#eee;"><?php echo htmlspecialchars($snap['conf'] ?? ''); ?></textarea>
             <div class="buttons mt-3">
-                <button class="button is-link" type="button"
-                        onclick="var t=document.getElementById('snap_textarea_<?php echo $i; ?>'); t.select(); document.execCommand('copy'); alert('Copiado!');">
-                    <span class="icon"><i class="bi bi-clipboard"></i></span>
-                    <span>Copiar</span>
+                <button class="button is-link" type="button" onclick="var t=document.getElementById('snap_textarea_<?php echo $i; ?>'); t.select(); document.execCommand('copy'); alert('Copiado!');">
+                    <span class="icon"><i class="bi bi-clipboard"></i></span><span>Copiar</span>
                 </button>
-                <button class="button" type="button"
-                        onclick="document.getElementById('snap_modal_<?php echo $i; ?>').classList.remove('is-active');">
-                    Fechar
-                </button>
+                <button class="button" type="button" onclick="document.getElementById('snap_modal_<?php echo $i; ?>').classList.remove('is-active');">Fechar</button>
             </div>
         </div>
     </div>
 </div>
 <?php endforeach; ?>
+
 </div>
 <?php elseif ($tab === 'peers'): ?>
 
@@ -2382,126 +2227,151 @@ if (!isset($snapshots)) {
 <?php endif; ?>
 
 <?php elseif ($tab === 'provisionar'): ?>
-	<div class="box">
-		<h2 class="title is-4">Provisionar Ramais (NAS) em massa</h2>
-<p>
-Os peers serão criados com IP em formato <code>/32</code> dentro da rede base configurada na interface,
-usando alocação sequencial ou aleatória conforme selecionado abaixo.
-Depois você pode ajustar o address individualmente na aba "Peers".
-</p>
+	<div class="box custom-card" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 2rem;">
+		
+		<!-- Cabeçalho -->
+		<div class="media align-items-center mb-5">
+			<div class="media-left">
+				<span class="icon is-large has-text-link" style="background: #eff5fb; border-radius: 12px; height: 3rem; width: 3rem;">
+					<i class="bi-hdd-network-fill" style="font-size: 1.8rem;"></i>
+				</span>
+			</div>
+			<div class="media-content">
+				<h2 class="title is-4 mb-1">Provisionar Ramais (NAS) em massa</h2>
+				<p class="subtitle is-6 has-text-grey">Crie e gerencie peers WireGuard para múltiplos equipamentos de uma vez.</p>
+			</div>
+		</div>
 
-<form method="post" action="?tab=provisionar" id="form_provisionar">
-    <input type="hidden" name="acao" value="provisionar_ramais">
+		<form method="post" action="?tab=provisionar" id="form_provisionar">
+			<input type="hidden" name="acao" value="provisionar_ramais">
 
-    <div class="field">
-        <label class="label">Rede base WireGuard (wg0)</label>
-        <div class="control">
-            <input class="input" type="text" name="wg_base_cidr"
-                   value="<?php echo htmlspecialchars($wg_base_cidr); ?>"
-                   readonly>
-        </div>
-        <p class="help">
-            <?php if ($wg_server_host !== '' && $wg_max_peers > 0): ?>
-                Server host: <code><?php echo htmlspecialchars($wg_server_host); ?></code>
-                &bull;
-                A configuração de rede atual permite o provisionamento de até
-                <strong><?php echo number_format($wg_max_peers, 0, ',', '.'); ?></strong>
-                ramais Mikrotik (RBs) nesta rede.
-            <?php elseif ($wg_server_host !== ''): ?>
-                Server host: <code><?php echo htmlspecialchars($wg_server_host); ?></code>
-            <?php else: ?>
-                Configure a interface WireGuard primeiro (aba Servidor WireGuard).
-            <?php endif; ?>
-        </p>
-    </div>
-    <div class="field">
-        <label class="label">Estratégia de alocação de IP</label>
-        <div class="control">
-            <label class="radio">
-                <input type="radio" name="alloc_mode" value="seq" checked>
-                Sequencial (.2, .3, .4…)
-            </label>
-            &nbsp;&nbsp;
-            <label class="radio">
-                <input type="radio" name="alloc_mode" value="rand">
-                Aleatório dentro da rede
-            </label>
-        </div>
-        <p class="help">
-            Sequencial atribui IPs em ordem crescente dentro do prefixo informado para a interface,
-            pulando os já usados; aleatório escolhe um IP livre ao acaso no mesmo range.
-        </p>
-    </div>
-	<div class="field">
-		<label class="checkbox">
-			<input type="checkbox" name="atualizar_ip_nas" value="1" checked>
-			Atualizar campo <code>ip</code> do NAS para o IP WireGuard ao provisionar
-		</label>
-		<p class="help">
-			O campo <code>ip</code> da tabela <code>nas</code> passará a usar o IP interno
-			da interface WireGuard para gestão deste Ramal. Nenhum outro <code>Dado do sistema</code> será alterado.
-		</p>
-	</div>
-			<table class="table is-striped is-fullwidth">
-				<thead>
-					<tr>
-						<th style="width:1%;">
-							<input type="checkbox" id="check_all_ramal"
-								   onclick="toggleAllRamais(this)">
-						</th>
-						<th>ID NAS</th>
-						<th>Ramal</th>
-						<th>Host/IP</th>
-						<th>Bairro</th>
-						<th>Status WG</th>
-					</tr>
-				</thead>
-				<tbody>
-				<?php if (!$ramais_list): ?>
-					<tr>
-						<td colspan="6">Nenhum ramal (NAS) encontrado.</td>
-					</tr>
-				<?php else: ?>
-					<?php foreach ($ramais_list as $r): ?>
-						<?php
-						$ja = !empty($r['wg_id']);
-						?>
+			<!-- Dois Cards Lado a Lado -->
+			<div class="columns is-multiline mb-5">
+				
+				<!-- CARD 1: Rede Base -->
+				<div class="column is-6">
+					<div class="box" style="height: 100%; display: flex; flex-direction: column; border-radius: 10px; border: 1px solid #eef0f3; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+						<h3 class="subtitle is-6 has-text-grey-dark mb-3">
+							<i class="bi-diagram-3 mr-1"></i> Rede base WireGuard (wg0)
+						</h3>
+						
+						<!-- IP Gigante em destaque -->
+						<div class="is-size-2 has-text-weight-bold has-text-dark mb-3" style="letter-spacing: -1px;">
+							<?php echo htmlspecialchars($wg_base_cidr); ?>
+						</div>
+						
+						<!-- Input escondido para enviar no POST -->
+						<input type="hidden" name="wg_base_cidr" value="<?php echo htmlspecialchars($wg_base_cidr); ?>">
+						
+						<!-- Textos menores empurrados para o final do card -->
+						<div class="mt-auto">
+							<?php if ($wg_server_host !== '' && $wg_max_peers > 0): ?>
+								<span class="tag is-info mb-1">Server host: <?php echo htmlspecialchars($wg_server_host); ?></span>
+								<p class="is-size-7 has-text-grey">A configuração atual permite até <strong><?php echo number_format($wg_max_peers, 0, ',', '.'); ?></strong> ramais (RBs) nesta rede.</p>
+							<?php elseif ($wg_server_host !== ''): ?>
+								<p class="is-size-7 has-text-grey">Server host: <code><?php echo htmlspecialchars($wg_server_host); ?></code></p>
+							<?php else: ?>
+								<p class="has-text-danger is-size-7"><i class="bi-exclamation-triangle"></i> Configure a interface WireGuard primeiro.</p>
+							<?php endif; ?>
+						</div>
+					</div>
+				</div>
+
+				<!-- CARD 2: Estratégia -->
+				<div class="column is-6">
+					<div class="box" style="height: 100%; display: flex; flex-direction: column; border-radius: 10px; border: 1px solid #eef0f3; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+						<h3 class="subtitle is-6 has-text-grey-dark mb-3">
+							<i class="bi-shuffle mr-1"></i> Estratégia de alocação de IP
+						</h3>
+						
+						<div class="control mb-1">
+							<label class="radio mr-4 p-2" style="border: 1px solid #ddd; border-radius: 6px; cursor: pointer; transition: 0.2s; background: #fafafa;">
+								<input type="radio" name="alloc_mode" value="seq" checked>
+								<strong>Sequencial</strong> <span class="has-text-grey is-size-7">(.2, .3, .4…)</span>
+							</label>
+							<label class="radio p-2" style="border: 1px solid #ddd; border-radius: 6px; cursor: pointer; transition: 0.2s; background: #fafafa;">
+								<input type="radio" name="alloc_mode" value="rand">
+								<strong>Aleatório</strong>
+							</label>
+						</div>
+						<p class="help is-size-7 has-text-grey mb-4">
+							Sequencial atribui IPs em ordem crescente. Aleatório escolhe um livre ao acaso. Os peers usarão formato <code>/32</code>.
+						</p>
+						
+						<div class="field mt-auto">
+							<label class="checkbox" style="display: flex; align-items: center; background: #eef6fc; padding: 10px 15px; border-radius: 6px; border: 1px solid #cce3f6; cursor: pointer;">
+								<input type="checkbox" name="atualizar_ip_nas" value="1" checked class="mr-2">
+								<span class="is-size-6">Atualizar campo <code>ip</code> do NAS para o novo IP WG</span>
+							</label>
+							<p class="help mt-1">Nenhum outro <code>Dado do sistema</code> será alterado.</p>
+						</div>
+					</div>
+				</div>
+
+			</div>
+
+			<!-- TABELA ORIGINAL - Intocada -->
+			<div class="table-container" style="border-radius: 8px; border: 1px solid #eee; overflow: hidden; margin-bottom: 0;">
+				<table class="table is-striped is-hoverable is-fullwidth align-middle" style="margin-bottom: 0;">
+					<thead style="background-color: #f8f9fa;">
 						<tr>
-							<td>
-								<?php if (!$ja): ?>
-									<input type="checkbox"
-										   class="ramal-checkbox"
-										   name="ramal_ids[]"
-										   value="<?php echo (int)$r['id_nas']; ?>">
-								<?php endif; ?>
-							</td>
-							<td><?php echo (int)$r['id_nas']; ?></td>
-							<td><?php echo htmlspecialchars($r['shortname']); ?></td>
-							<td><?php echo htmlspecialchars($r['nasname']); ?></td>
-							<td><?php echo htmlspecialchars($r['bairro']); ?></td>
-							<td>
-								<?php if ($ja): ?>
-									<span class="tag is-success">Provisionado (<?php echo htmlspecialchars($r['wg_peer_name']); ?>)</span>
-								<?php else: ?>
-									<span class="tag is-light">Sem peer</span>
-								<?php endif; ?>
+							<th style="width:1%; text-align: center;">
+								<input type="checkbox" id="check_all_ramal" onclick="toggleAllRamais(this)">
+							</th>
+							<th>ID NAS</th>
+							<th>Ramal</th>
+							<th>Host/IP</th>
+							<th>Bairro</th>
+							<th>Status WG</th>
+						</tr>
+					</thead>
+					<tbody>
+					<?php if (!$ramais_list): ?>
+						<tr>
+							<td colspan="6" class="has-text-centered p-5 has-text-grey">
+								<i class="bi-inbox" style="font-size: 2rem;"></i><br>
+								Nenhum ramal (NAS) encontrado.
 							</td>
 						</tr>
-					<?php endforeach; ?>
-				<?php endif; ?>
-				</tbody>
-			</table>
+					<?php else: ?>
+						<?php foreach ($ramais_list as $r): ?>
+							<?php
+							$ja = !empty($r['wg_id']);
+							?>
+							<tr>
+								<td class="has-text-centered">
+									<?php if (!$ja): ?>
+										<input type="checkbox"
+											   class="ramal-checkbox"
+											   name="ramal_ids[]"
+											   value="<?php echo (int)$r['id_nas']; ?>">
+									<?php endif; ?>
+								</td>
+								<td><strong><?php echo (int)$r['id_nas']; ?></strong></td>
+								<td><?php echo htmlspecialchars($r['shortname']); ?></td>
+								<td style="font-family: monospace;"><?php echo htmlspecialchars($r['nasname']); ?></td>
+								<td><?php echo htmlspecialchars($r['bairro']); ?></td>
+								<td>
+									<?php if ($ja): ?>
+										<span class="tag is-success"><i class="bi-check-circle-fill mr-1"></i> Provisionado (<?php echo htmlspecialchars($r['wg_peer_name']); ?>)</span>
+									<?php else: ?>
+										<span class="tag is-light" style="border: 1px solid #ccc;"><i class="bi-dash-circle mr-1"></i> Sem peer</span>
+									<?php endif; ?>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					<?php endif; ?>
+					</tbody>
+				</table>
+			</div>
 
-			<nav class="level is-mobile">
+			<nav class="level is-mobile mt-4 pt-4" style="border-top: 1px solid #eee;">
 				<div class="level-left">
 					<div class="level-item">
-						<a href="#"
-						   title="Criar peers WireGuard para os ramais selecionados"
-						   onclick="return submitProvisionarRamais();">
-							<span class="icon has-text-success">
-								<i class="bi-plus-square-fill" style="font-size: 30px"></i>
-							</span>
-						</a>
+						<button type="button" class="button is-success is-medium" title="Criar peers WireGuard para os ramais selecionados" onclick="return submitProvisionarRamais();" style="border-radius: 8px;">
+							<span class="icon"><i class="bi-plus-square-fill"></i></span>
+							<span>Provisionar Selecionados</span>
+						</button>
 					</div>
 				</div>
 			</nav>

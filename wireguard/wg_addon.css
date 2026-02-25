@@ -106,7 +106,11 @@ h1, .title, .subtitle {
     padding: 0.75rem !important;
     font-size: 0.75rem !important; /* Texto do código bem menor */
     line-height: 1.3 !important;
-    max-height: 250px !important; /* Limita a altura máxima para não empurrar a tela */
+    
+    /* A MÁGICA: Tiramos o max-height de 250px e colocamos 100% para o Flexbox agir livremente */
+    max-height: 100% !important; 
+    height: 100% !important; 
+    
     overflow-y: auto !important; /* Cria barra de rolagem apenas dentro do código */
     border-radius: 10px !important;
 }

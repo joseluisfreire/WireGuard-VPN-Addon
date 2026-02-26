@@ -215,6 +215,72 @@ function wgRandomPrivate24() {
         input.value = ip;
     }
 }
+// ==============================================================
+// MÁGICA DO SORTEIO DE IP (Aba: Criar Peer)
+// ==============================================================
+
+// Converte IP pra Número (Cálculos matemáticos)
+function ipToLongJS(ip) {
+    return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+}
+
+// Converte Número devolta pra IP
+function longToIpJS(long) {
+    return [(long >>> 24) & 255, (long >>> 16) & 255, (long >>> 8) & 255, long & 255].join('.');
+}
+
+// Animação visual da roleta
+function animarInput() {
+    const input = document.getElementById('peer_address');
+    if (!input) return;
+    input.style.transform = 'scale(1.02)';
+    input.style.backgroundColor = '#f0fdfa';
+    input.style.borderColor = '#48c774';
+    setTimeout(() => {
+        input.style.transform = 'scale(1)';
+        input.style.backgroundColor = '';
+        input.style.borderColor = '#e2e8f0';
+    }, 200);
+}
+
+// O Motor do Sorteio
+function sortearIpPeerJS() {
+    const cfg = window.wgIpConfig; // Lê os dados exportados pelo PHP
+    if (!cfg || !cfg.netIp || cfg.mask === 0) return alert('Rede base inválida.');
+
+    let netLong = ipToLongJS(cfg.netIp);
+    let hostBits = 32 - cfg.mask;
+    let maxHosts = (1 << hostBits);
+    let maskLong = ~((1 << hostBits) - 1) >>> 0;
+    let networkStart = netLong & maskLong;
+
+    let tries = 0;
+    while(tries < 1000) {
+        // Sorteia entre 1 e maxHosts-2 (ignora Rede e Broadcast)
+        let offset = Math.floor(Math.random() * (maxHosts - 2)) + 1; 
+        let candidateLong = networkStart + offset;
+        let candidateIp = longToIpJS(candidateLong);
+
+        // Se o IP não está no banco (usedIps), joga na tela!
+        if(!cfg.usedIps.includes(candidateIp) && candidateIp !== cfg.netIp) {
+            document.getElementById('peer_address').value = candidateIp + '/32';
+            animarInput();
+            return;
+        }
+        tries++;
+    }
+    alert('A rede está cheia ou quase cheia, impossível sortear mais IPs.');
+}
+
+// Botão de voltar pro Sequencial
+function restaurarSequencialJS() {
+    const cfg = window.wgIpConfig;
+    if(cfg && cfg.seqIp) {
+        document.getElementById('peer_address').value = cfg.seqIp + '/32';
+        animarInput();
+    }
+}
+
 // Função para copiar texto ao clicar no botão
 function copiarTexto(texto) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -236,4 +302,50 @@ function copiarTexto(texto) {
         document.body.removeChild(textarea);
         alert('Copiado: ' + texto);
     }
+}
+/**
+ * Confirmação em 2 etapas para Reset do servidor WireGuard.
+ */
+function confirmReset() {
+    // Etapa 1: Aviso sobre backups
+    var ok1 = confirm(
+        '⚠️ ATENÇÃO: RESET DO SERVIDOR WIREGUARD\n\n'
+        + 'Esta ação irá:\n'
+        + '• Gerar nova keypair do servidor\n'
+        + '• Recriar wg0.conf do zero\n'
+        + '• DELETAR TODOS os peers da tabela wg_ramais\n'
+        + '• ⚠️ APAGAR TODOS OS BACKUPS/SNAPSHOTS!\n\n'
+        + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+        + 'Se deseja reverter um estado anterior,\n'
+        + 'faça o DOWNLOAD do(s) backup(s) ANTES\n'
+        + 'dessa ação na coluna "Backup & Restore".\n'
+        + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
+        + 'Deseja continuar mesmo assim?'
+    );
+
+    if (!ok1) return false;
+
+    // Etapa 2: Confirmação final
+    var ok2 = confirm(
+        '🔴 CONFIRMAÇÃO FINAL\n\n'
+        + 'Todos os peers e backups serão perdidos.\n'
+        + 'Esta ação é IRREVERSÍVEL.\n\n'
+        + 'Clique OK para RESETAR.'
+    );
+
+    return ok2;
+}
+/**
+ * Confirmação para importar backup .conf externo
+ */
+function confirmImportBackup() {
+    return confirm(
+        '⚠️ IMPORTAR BACKUP EXTERNO\n\n'
+        + 'Isso vai:\n'
+        + '• Fazer snapshot do estado atual (segurança)\n'
+        + '• Substituir o wg0.conf pelo arquivo enviado\n'
+        + '• Reconstruir os peers no banco a partir do .conf\n\n'
+        + 'O servidor WireGuard será reiniciado.\n\n'
+        + 'Continuar?'
+    );
 }

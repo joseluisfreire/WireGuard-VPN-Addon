@@ -31,9 +31,15 @@ function wg_snapshot_interface(mysqli $db, string $socketPath, string $reason = 
             unset($row['interface_text']);
             // Remove id — será gerado auto_increment na restauração
             unset($row['id']);
+            
+            // Só incrementa o contador se NÃO for a Linha Mestra
+            if (isset($row['wg_client_id']) && $row['wg_client_id'] !== 'SERVER_MASTER') {
+                $peerCount++;
+            }
 
             $cols = [];
             $vals = [];
+            // Recriar o loop pegando os dados originais (agora a gente usa $row que não tem mais o id/interface_text)
             foreach ($row as $col => $val) {
                 $cols[] = "`{$col}`";
                 if ($val === null) {
@@ -44,7 +50,6 @@ function wg_snapshot_interface(mysqli $db, string $socketPath, string $reason = 
             }
 
             $sqlDump .= "INSERT INTO wg_ramais (" . implode(', ', $cols) . ") VALUES (" . implode(', ', $vals) . ");\n";
-            $peerCount++;
         }
         $rs->close();
     }

@@ -99,19 +99,26 @@ h1, .title, .subtitle {
     padding: 0.5rem !important; /* Diminui o fosso entre os 3 cards */
 }
 
-/* ========================================
-   5. CARD DO MEIO (SNAPSHOT PRETO)
-   ======================================== */
-.box pre {
+/* ==============================================================
+   5. CARD 2 e 3 ALINHAMENTO PERFEITO (MANTENDO A ALTURA NATURAL)
+	============================================================ */
+
+/* A Caixa Preta e a Tabela de Backups viram "molas" e preenchem o espaço vazio */
+#card_wg_conf_view pre,
+#view_backup_list .table-container {
+    flex: 1 1 0 !important;       /* Estica até o fundo do card */
+    height: auto !important;      /* Ignora altura em pixels */
+    min-height: 0 !important;     /* Cancela o min-height: 250px do HTML */
+    max-height: none !important;  /* Cancela o max-height: 235px do HTML */
+    overflow-y: auto !important;  /* Mantém o scroll interno */
+    margin-bottom: 0 !important;
+}
+
+/* Ajustes estéticos da caixa preta */
+#card_wg_conf_view pre {
     padding: 0.75rem !important;
-    font-size: 0.75rem !important; /* Texto do código bem menor */
+    font-size: 0.75rem !important; 
     line-height: 1.3 !important;
-    
-    /* A MÁGICA: Tiramos o max-height de 250px e colocamos 100% para o Flexbox agir livremente */
-    max-height: 100% !important; 
-    height: 100% !important; 
-    
-    overflow-y: auto !important; /* Cria barra de rolagem apenas dentro do código */
     border-radius: 10px !important;
 }
 

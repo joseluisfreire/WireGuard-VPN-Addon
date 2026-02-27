@@ -76,7 +76,7 @@ ACTION_TEXT="Instalado"
 # ══════════════════════════════════════════════════════════════════════
 if [[ "${1:-}" == "--uninstall" ]] || [[ "${1:-}" == "--remove" ]]; then
     warn "Iniciando remoção do Addon WireGuard VPN..."
-    
+
     # Parar serviços
     if [[ -x "$WG_QUICK_BIN" ]] && ip link show wg0 > /dev/null 2>&1; then
         "$WG_QUICK_BIN" down wg0 > /dev/null 2>&1 || true
@@ -92,9 +92,25 @@ if [[ "${1:-}" == "--uninstall" ]] || [[ "${1:-}" == "--remove" ]]; then
     rm -f "${MKAUTH_DIR}/addons/addon_wireguard.js"
     rm -rf "$ADDON_DIR"
     rm -f /etc/logrotate.d/wg-mkauthd
-    
+
     ok "Arquivos binários, scripts e painel removidos!"
-    info "As chaves e clientes em $WG_CONF_DIR foram preservados por segurança."
+    echo ""
+    
+    # --- PERGUNTA INTERATIVA DE PURGE ---
+    # Lendo de /dev/tty para o 'read' não ser ignorado pelo curl | bash
+    read -p "  Deseja fazer uma LIMPEZA TOTAL (apagar chaves, clientes e banco de dados)? [s/N]: " -r resposta </dev/tty
+    echo ""
+
+    if [[ "$resposta" =~ ^[SsYy]$ ]]; then
+        rm -rf "${WG_CONF_DIR}"
+        mysql -u root -pvertrigo mkradius -e "DROP TABLE IF EXISTS wg_ramais;" 2>/dev/null || true
+        ok "Purge OK! (Remoção total e completa finalizada)."
+    else
+        info "As chaves e clientes em $WG_CONF_DIR foram preservados por segurança."
+        info "A tabela do banco de dados também foi mantida."
+    fi
+    # ------------------------------------
+
     echo ""
     exit 0
 fi
@@ -107,7 +123,7 @@ if [[ "${1:-}" == "--update" ]]; then
         "$INITD_SCRIPT" stop > /dev/null 2>&1 || true
         sleep 1
     fi
-    # O script não dá exit aqui. Ele continua rodando para baixo, 
+    # O script não dá exit aqui. Ele continua rodando para baixo,
     # sobrescrevendo os arquivos velhos de forma segura!
 fi
 

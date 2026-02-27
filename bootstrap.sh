@@ -38,20 +38,21 @@ MKAUTH_DIR="/opt/mk-auth/admin"
 
 command -v curl > /dev/null 2>&1 || fatal "curl não encontrado. Instale: apt install curl"
 
-# ── Constantes ────────────────────────────────────────────────────────
+# ── Constantes e Versões ──────────────────────────────────────────────
 GITHUB_BASE="https://github.com/joseluisfreire"
 
-# wireguard-tools-static
 WG_TOOLS_REPO="wireguard-tools-static"
 WG_TOOLS_TAG="v1.0.20250521"
 WG_TOOLS_URL="${GITHUB_BASE}/${WG_TOOLS_REPO}/releases/download/${WG_TOOLS_TAG}"
 
-# wg-mkauthd
 WG_DAEMON_REPO="wg-mkauthd"
-WG_DAEMON_TAG="v1.0.0"
+# Busca a versão mais recente na API do GitHub (Update Automático real)
+WG_DAEMON_TAG=$(curl -s "https://api.github.com/repos/${GITHUB_BASE##*/}/${WG_DAEMON_REPO}/releases/latest" | grep '"tag_name":' | cut -d '"' -f 4 || true)
+if [[ -z "$WG_DAEMON_TAG" ]]; then
+    WG_DAEMON_TAG="v1.0.3" # Fallback se o GitHub falhar
+fi
 WG_DAEMON_URL="${GITHUB_BASE}/${WG_DAEMON_REPO}/releases/download/${WG_DAEMON_TAG}"
 
-# WireGuard-VPN-Addon (este repo)
 ADDON_REPO="WireGuard-VPN-Addon"
 ADDON_BRANCH="main"
 
@@ -68,6 +69,47 @@ ADDON_DIR="${MKAUTH_DIR}/addons/wireguard"
 TMP_DIR=$(mktemp -d /tmp/wg-addon-XXXXXX)
 
 trap "rm -rf $TMP_DIR" EXIT
+ACTION_TEXT="Instalado"
+
+# ══════════════════════════════════════════════════════════════════════
+# CONTROLE DE ARGUMENTOS (--update ou --uninstall)
+# ══════════════════════════════════════════════════════════════════════
+if [[ "${1:-}" == "--uninstall" ]] || [[ "${1:-}" == "--remove" ]]; then
+    warn "Iniciando remoção do Addon WireGuard VPN..."
+    
+    # Parar serviços
+    if [[ -x "$WG_QUICK_BIN" ]] && ip link show wg0 > /dev/null 2>&1; then
+        "$WG_QUICK_BIN" down wg0 > /dev/null 2>&1 || true
+    fi
+    if [[ -x "$INITD_SCRIPT" ]]; then
+        "$INITD_SCRIPT" stop > /dev/null 2>&1 || true
+        update-rc.d -f wg-mkauthd remove > /dev/null 2>&1 || true
+    fi
+
+    # Remover arquivos
+    rm -f "$INITD_SCRIPT" "$SOCKET_PATH" /var/run/wg-mkauthd.pid
+    rm -f "$WG_BIN" "$WG_QUICK_BIN" "$DAEMON_BIN"
+    rm -f "${MKAUTH_DIR}/addons/addon_wireguard.js"
+    rm -rf "$ADDON_DIR"
+    rm -f /etc/logrotate.d/wg-mkauthd
+    
+    ok "Arquivos binários, scripts e painel removidos!"
+    info "As chaves e clientes em $WG_CONF_DIR foram preservados por segurança."
+    echo ""
+    exit 0
+fi
+
+if [[ "${1:-}" == "--update" ]]; then
+    ACTION_TEXT="Atualizado"
+    info "Iniciando atualização para a versão ${WG_DAEMON_TAG}..."
+    if [[ -x "$INITD_SCRIPT" ]]; then
+        info "Parando serviço wg-mkauthd temporariamente..."
+        "$INITD_SCRIPT" stop > /dev/null 2>&1 || true
+        sleep 1
+    fi
+    # O script não dá exit aqui. Ele continua rodando para baixo, 
+    # sobrescrevendo os arquivos velhos de forma segura!
+fi
 
 # ══════════════════════════════════════════════════════════════════════
 # 1. GRUPO wgmkauth + www-data
@@ -315,9 +357,9 @@ id -nG www-data 2>/dev/null | grep -qw "$WG_GROUP" && ok "www-data ∈ ${WG_GROU
 echo ""
 echo -e "${GREEN}══════════════════════════════════════════════════════════════${NC}"
 if [[ $ERRORS -eq 0 ]]; then
-    echo -e "${GREEN}  ✅  Addon WireGuard VPN para MK-AUTH — Instalado!         ${NC}"
+    echo -e "${GREEN}  ✅  Addon WireGuard VPN para MK-AUTH — ${ACTION_TEXT}!         ${NC}"
 else
-    echo -e "${YELLOW}  ⚠️   Instalado com ${ERRORS} aviso(s) — verifique acima     ${NC}"
+    echo -e "${YELLOW}  ⚠️   Concluído com ${ERRORS} aviso(s) — verifique acima     ${NC}"
 fi
 echo -e "${GREEN}══════════════════════════════════════════════════════════════${NC}"
 echo ""
@@ -332,13 +374,13 @@ echo -e "    Log:       ${CYAN}${LOG_FILE}${NC}"
 echo -e "    Addon:     ${CYAN}${ADDON_DIR}/${NC}"
 echo -e "    Init.d:    ${CYAN}${INITD_SCRIPT}${NC}"
 echo ""
-echo -e "  ${BOLD}Comandos úteis:${NC}"
-echo -e "    ${YELLOW}/etc/init.d/wg-mkauthd start|stop|restart|status${NC}"
-echo -e "    ${YELLOW}tail -f ${LOG_FILE}${NC}"
-echo -e "    ${YELLOW}stat ${SOCKET_PATH}${NC}"
-echo -e "    ${YELLOW}groups www-data${NC}"
+echo -e "  ${BOLD}Comandos de Manutenção:${NC}"
+echo -e "    Instalar/Reparar: ${YELLOW}curl -sSL https://raw... | sudo bash${NC}"
+echo -e "    Atualizar Addon:  ${YELLOW}curl -sSL https://raw... | sudo bash -s -- --update${NC}"
+echo -e "    Desinstalar tudo: ${YELLOW}curl -sSL https://raw... | sudo bash -s -- --uninstall${NC}"
 echo ""
 echo -e "  ${BOLD}Versões:${NC}"
 echo -e "    wireguard-tools:  ${CYAN}${WG_TOOLS_TAG}${NC}"
 echo -e "    wg-mkauthd:       ${CYAN}${WG_DAEMON_TAG}${NC}"
 echo ""
+

@@ -1311,6 +1311,7 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
 
                         if (!empty($resp['data']['allowedIPs'])) {
+                            // Pegamos EXATAMENTE o que o Go mandou (IP do server + IP do client)
                             $newAllowed = trim($resp['data']['allowedIPs']);
                         }
                     } else {
@@ -1323,17 +1324,34 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         );
                     }
 
+                    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    // MÁGICA PARA O OFFLINE (Sem a ajuda do Go)
+                    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    // Se o status for disabled ou o Go falhar em devolver o $newAllowed:
+                    if (empty($newAllowed)) {
+                        // Vamos ler a linha do AllowedIPs atual do conf
+                        if (preg_match('/^AllowedIPs\s*=\s*(.+)$/mi', $config_text, $matches)) {
+                            $current_allowed = trim($matches[1]);
+                            // Trocamos APENAS o IP antigo pelo novo, deixando o IP do servidor intacto!
+                            $newAllowed = str_replace($old_ip, $address, $current_allowed);
+                        } else {
+                            $newAllowed = $address; // Fallback extremo
+                        }
+                    }
+
                     if (is_string($config_text) && $config_text !== '') {
+                        // Atualiza Address protegendo com ${1}
                         $config_text = preg_replace(
                             '/^(Address\s*=\s*).+$/mi',
-                            '$1' . $address,
+                            '${1}' . $address,
                             $config_text
                         );
 
+                        // Atualiza AllowedIPs com o que veio do Go (ou da nossa lógica offline)
                         if (!empty($newAllowed)) {
                             $config_text = preg_replace(
                                 '/^(AllowedIPs\s*=\s*).+$/mi',
-                                '$1' . $newAllowed,
+                                '${1}' . $newAllowed,
                                 $config_text
                             );
                         }
@@ -1354,8 +1372,9 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         $msg_erro .= 'Erro prepare UPDATE address: ' . $mysqli->error;
                         continue;
                     }
-                    $allowedForDb = !empty($newAllowed) ? $newAllowed : $address;
-                    $stmtUp->bind_param('sssi', $address, $allowedForDb, $config_text, $id_peer);
+                    
+                    // Salvamos a string completinha no banco também
+                    $stmtUp->bind_param('sssi', $address, $newAllowed, $config_text, $id_peer);
 
                     if (!$stmtUp->execute()) {
                         $msg_erro .= 'Erro ao atualizar endereço no banco: ' . $stmtUp->error;
@@ -1811,3 +1830,4 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 } // fim if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST')
+

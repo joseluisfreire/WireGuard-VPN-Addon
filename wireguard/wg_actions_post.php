@@ -238,6 +238,232 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         date('c') . " POST ACAO={$acao} RAW=" . http_build_query($_POST) . "\n",
         FILE_APPEND
     );
+    // =========================================================================
+    // VALIDADOR OTP: ENVIANDO PARA O DAEMON GO (SOCKET UNIX)
+    // =========================================================================
+    if ($acao === 'testar_ssh_otp') {
+        header('Content-Type: application/json');
+        $id_nas = isset($_POST['id_nas']) ? (int)$_POST['id_nas'] : 0;
+        
+        $q = $mysqli->query("SELECT nasname, ipfall, portassh, senha FROM nas WHERE id = $id_nas");
+        if (!$q || $q->num_rows === 0) {
+            echo json_encode(['status' => 'error', 'msg' => 'NAS não encontrado no BD']);
+            exit;
+        }
+        $nas = $q->fetch_assoc();
+        
+        $ips_to_test = [];
+        if (!empty(trim($nas['nasname']))) $ips_to_test[] = trim($nas['nasname']);
+        if (!empty(trim($nas['ipfall']))) $ips_to_test[] = trim($nas['ipfall']);
+        $ips_to_test = array_unique($ips_to_test); 
+        
+        if (empty($ips_to_test)) {
+            echo json_encode(['status' => 'error', 'msg' => 'Sem IP cadastrado']);
+            exit;
+        }
+        
+        // Payload para o Daemon agir
+        $payload = json_encode([
+            'action' => 'testar-ssh',
+            'ips'    => array_values($ips_to_test),
+            'port'   => !empty($nas['portassh']) ? (int)$nas['portassh'] : 22,
+            'pass'   => trim($nas['senha']),
+            'user'   => 'mkauth'
+        ]);
+        
+        // Atirando no Socket Unix do Go!
+        $socket_path = '/run/wgmkauth.sock'; // Caminho real do seu Daemon
+        $fp = fsockopen("unix://$socket_path", -1, $errno, $errstr, 5);
+        
+        if (!$fp) {
+            echo json_encode(['status' => 'error', 'msg' => "Falha no Socket do Go: $errstr"]);
+            exit;
+        }
+        
+        fwrite($fp, $payload . "\n");
+        $resposta_daemon = stream_get_contents($fp);
+        fclose($fp);
+        
+        // Formata a resposta do Go para o Frontend do MK-Auth
+        $resp = json_decode($resposta_daemon, true);
+        if (isset($resp['ok']) && $resp['ok'] === true) {
+            echo json_encode([
+                'status' => 'ok',
+                'ip'     => $resp['data']['ip'],
+                'metodo' => $resp['data']['metodo'],
+                'user'   => $resp['data']['user']
+            ]);
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'msg'    => $resp['message'] ?? 'Falha desconhecida no Go Daemon',
+                'debug'  => $resp['data']['debug'] ?? []
+            ]);
+        }
+        exit;
+    }
+
+	// =========================================================================
+    // EXECUTAR OTP: INJEÇÃO DIRETA VIA SSH NO MIKROTIK
+    // =========================================================================
+    if ($acao === 'executar_otp_unitario') {
+        header('Content-Type: application/json');
+        $id_nas = isset($_POST['id_nas']) ? (int)$_POST['id_nas'] : 0;
+        
+        $q = $mysqli->query("
+            SELECT n.nasname, n.ipfall, n.portassh, n.senha,
+                   w.id as id_wg, w.peer_name, w.config_text, w.ip_wg
+            FROM nas n
+            JOIN wg_ramais w ON w.id_nas = n.id
+            WHERE n.id = $id_nas
+            LIMIT 1
+        ");
+        
+        if (!$q || $q->num_rows === 0) {
+            echo json_encode(['status' => 'error', 'msg' => 'NAS sem túnel provisionado.']);
+            exit;
+        }
+        
+        $row = $q->fetch_assoc();
+        
+        if (empty($row['config_text'])) {
+            echo json_encode(['status' => 'error', 'msg' => 'Configuração .conf ausente no BD.']);
+            exit;
+        }
+        
+        // --- GERAR SCRIPT MIKROTIK (.RSC) ---
+        $lines = preg_split("/\r\n|\r|\n/", $row['config_text']);
+        $ifacePrivate = ''; $ifaceAddress = ''; $peerPublic = ''; $peerPsk = ''; 
+        $peerEndpoint = ''; $peerAllowed = ''; $peerKeep = '';
+        
+        $section = '';
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || strpos($line, '#') === 0) continue;
+            if (strcasecmp($line, '[Interface]') === 0) { $section = 'iface'; continue; }
+            if (strcasecmp($line, '[Peer]') === 0) { $section = 'peer'; continue; }
+            
+            $parts = explode('=', $line, 2);
+            if (count($parts) !== 2) continue;
+            $k = strtolower(trim($parts[0]));
+            $v = trim($parts[1]);
+            
+            if ($section === 'iface') {
+                if ($k === 'privatekey') $ifacePrivate = $v;
+                elseif ($k === 'address') $ifaceAddress = $v;
+            } elseif ($section === 'peer') {
+                if ($k === 'publickey') $peerPublic = $v;
+                elseif ($k === 'presharedkey') $peerPsk = $v;
+                elseif ($k === 'endpoint') $peerEndpoint = $v;
+                elseif ($k === 'allowedips') $peerAllowed = $v;
+                elseif ($k === 'persistentkeepalive') $peerKeep = $v;
+            }
+        }
+        
+        $safe_name = preg_replace('/[^a-zA-Z0-9_-]+/', '_', $row['peer_name']) ?: 'peer';
+        $mtIfName  = 'wg-nas' . $id_nas;
+        $mtComment = 'WG-' . $safe_name;
+        
+        // SCRIPT: Remove os antigos primeiro e recria limpo!
+        $rsc  = "";
+        $rsc .= ":do { /interface wireguard peers remove [find comment=\"" . $mtComment . "\"] } on-error={}\n";
+        $rsc .= ":do { /interface wireguard remove [find name=\"" . $mtIfName . "\"] } on-error={}\n";
+        
+        $rsc .= "/interface wireguard add name=\"" . $mtIfName . "\" private-key=\"" . $ifacePrivate . "\" listen-port=0 comment=\"" . $mtComment . "\"\n";
+        
+        if ($ifaceAddress !== '') {
+            $rsc .= ":do { /ip address remove [find comment=\"" . $mtComment . "\"] } on-error={}\n";
+            $rsc .= "/ip address add address=" . $ifaceAddress . " interface=" . $mtIfName . " comment=\"" . $mtComment . "\"\n";
+        }
+        
+        $rsc .= "/interface wireguard peers add interface=" . $mtIfName . " public-key=\"" . $peerPublic . "\"";
+        if ($peerPsk !== '') $rsc .= " preshared-key=\"" . $peerPsk . "\"";
+        $rsc .= " allowed-address=" . $peerAllowed;
+        
+        if ($peerEndpoint !== '') {
+            $hp = explode(':', $peerEndpoint, 2);
+            if (count($hp) === 2) $rsc .= " endpoint-address=" . $hp[0] . " endpoint-port=" . (int)$hp[1];
+            else $rsc .= " endpoint-address=" . $peerEndpoint;
+        }
+        if ($peerKeep !== '') $rsc .= " persistent-keepalive=" . (int)$peerKeep;
+        $rsc .= " comment=\"" . $mtComment . "\"\n";
+        
+        if ($ifaceAddress !== '' && $peerAllowed !== '') {
+            $ipParts = explode('/', $ifaceAddress, 2);
+            $ipOnly  = trim($ipParts[0]);
+            $serverIp = null;
+            $allowedParts = explode(',', $peerAllowed);
+            foreach ($allowedParts as $p) {
+                if (strpos(trim($p), ':') !== false) continue;
+                $hp = explode('/', trim($p), 2);
+                if (!empty($hp[0])) { $serverIp = trim($hp[0]); break; }
+            }
+            if ($ipOnly !== '' && $serverIp !== null) {
+                $rsc .= ":do { /ip route remove [find comment=\"Rota MK-Auth WG " . $mtComment . "\"] } on-error={}\n";
+                $rsc .= "/ip route add dst-address=" . $serverIp . "/32 gateway=" . $mtIfName . " comment=\"Rota MK-Auth WG " . $mtComment . "\"\n";
+            }
+        }
+        
+        // --- MANDAR PRO DAEMON GO ---
+        $ips_to_test = [];
+        if (!empty(trim($row['nasname']))) $ips_to_test[] = trim($row['nasname']);
+        if (!empty(trim($row['ipfall']))) $ips_to_test[] = trim($row['ipfall']);
+        $ips_to_test = array_unique($ips_to_test);
+        
+        $payload = json_encode([
+            'action' => 'executar-otp',
+            'ips'    => array_values($ips_to_test),
+            'port'   => !empty($row['portassh']) ? (int)$row['portassh'] : 22,
+            'pass'   => trim($row['senha']),
+            'user'   => 'mkauth',
+            'script' => $rsc
+        ]);
+        
+        $fp = fsockopen("unix:///run/wgmkauth.sock", -1, $errno, $errstr, 5);
+        if (!$fp) { echo json_encode(['status' => 'error', 'msg' => "Falha Socket Go"]); exit; }
+        
+        fwrite($fp, $payload . "\n");
+        $resposta = json_decode(stream_get_contents($fp), true);
+        fclose($fp);
+        
+        if (isset($resposta['ok']) && $resposta['ok'] === true) {
+            echo json_encode(['status' => 'ok', 'ip' => $resposta['data']['ip'], 'metodo' => $resposta['data']['metodo']]);
+        } else {
+            echo json_encode(['status' => 'error', 'msg' => $resposta['message'] ?? 'Falha RB', 'debug' => $resposta['data']['debug'] ?? []]);
+        }
+        exit;
+    }
+
+    // =========================================================================
+    // RADAR LIVE STATS (Efeito LED / WinBox) - Retorna tráfego em tempo real
+    // =========================================================================
+    if ($acao === 'get_live_stats') {
+        header('Content-Type: application/json');
+        
+        // Pede pro Daemon Go a situação exata de agora
+        $resp = wg_call(['action' => 'list-clients'], $socketPath);
+        
+        if (!empty($resp['ok']) && !empty($resp['data'])) {
+            $clients = $resp['data']['clients'] ?? $resp['data'];
+            $dados_limpos = [];
+            
+            // Filtramos só o que importa pra não pesar a rede
+            foreach ($clients as $c) {
+                $pk = $c['publicKey'] ?? $c['public_key'] ?? '';
+                if ($pk !== '') {
+                    $dados_limpos[$pk] = [
+                        'rx' => (int)($c['transferRx'] ?? 0),
+                        'tx' => (int)($c['transferTx'] ?? 0)
+                    ];
+                }
+            }
+            echo json_encode(['status' => 'ok', 'peers' => $dados_limpos]);
+        } else {
+            echo json_encode(['status' => 'error']);
+        }
+        exit;
+    }
+
     // ------------------------------------------------------------------
     // salvar_nat: Configura o IP Global e atualiza os .conf
     // ------------------------------------------------------------------
@@ -1311,6 +1537,7 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
 
                         if (!empty($resp['data']['allowedIPs'])) {
+                            // Pegamos EXATAMENTE o que o Go mandou (IP do server + IP do client)
                             $newAllowed = trim($resp['data']['allowedIPs']);
                         }
                     } else {
@@ -1323,17 +1550,34 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         );
                     }
 
+                    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    // MÁGICA PARA O OFFLINE (Sem a ajuda do Go)
+                    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                    // Se o status for disabled ou o Go falhar em devolver o $newAllowed:
+                    if (empty($newAllowed)) {
+                        // Vamos ler a linha do AllowedIPs atual do conf
+                        if (preg_match('/^AllowedIPs\s*=\s*(.+)$/mi', $config_text, $matches)) {
+                            $current_allowed = trim($matches[1]);
+                            // Trocamos APENAS o IP antigo pelo novo, deixando o IP do servidor intacto!
+                            $newAllowed = str_replace($old_ip, $address, $current_allowed);
+                        } else {
+                            $newAllowed = $address; // Fallback extremo
+                        }
+                    }
+
                     if (is_string($config_text) && $config_text !== '') {
+                        // Atualiza Address protegendo com ${1}
                         $config_text = preg_replace(
                             '/^(Address\s*=\s*).+$/mi',
-                            '$1' . $address,
+                            '${1}' . $address,
                             $config_text
                         );
 
+                        // Atualiza AllowedIPs com o que veio do Go (ou da nossa lógica offline)
                         if (!empty($newAllowed)) {
                             $config_text = preg_replace(
                                 '/^(AllowedIPs\s*=\s*).+$/mi',
-                                '$1' . $newAllowed,
+                                '${1}' . $newAllowed,
                                 $config_text
                             );
                         }
@@ -1354,8 +1598,9 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         $msg_erro .= 'Erro prepare UPDATE address: ' . $mysqli->error;
                         continue;
                     }
-                    $allowedForDb = !empty($newAllowed) ? $newAllowed : $address;
-                    $stmtUp->bind_param('sssi', $address, $allowedForDb, $config_text, $id_peer);
+                    
+                    // Salvamos a string completinha no banco também
+                    $stmtUp->bind_param('sssi', $address, $newAllowed, $config_text, $id_peer);
 
                     if (!$stmtUp->execute()) {
                         $msg_erro .= 'Erro ao atualizar endereço no banco: ' . $stmtUp->error;
@@ -1520,8 +1765,47 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                         } else {
                             $err_count++;
                         }
+
+                    } elseif ($bulk_action === 'efetivar_ip') {
+                        // =========================================================
+                        // NOVA AÇÃO BULK: EFETIVAR MIGRAÇÃO (ATUALIZAR TABELA NAS)
+                        // =========================================================
+                        
+                        // 1. Precisamos saber o id_nas e o ip_wg desse peer
+                        // (Podemos fazer uma query rápida aqui já que não trouxemos no SELECT principal)
+                        $qNas = "SELECT id_nas, ip_wg FROM wg_ramais WHERE id = {$id_row}";
+                        $resNasInfo = $mysqli->query($qNas);
+                        
+                        if ($resNasInfo && $rowNasInfo = $resNasInfo->fetch_assoc()) {
+                            $id_nas_migrar = (int)$rowNasInfo['id_nas'];
+                            $ip_wg_completo = $rowNasInfo['ip_wg'];
+                            
+                            if ($id_nas_migrar > 0 && !empty($ip_wg_completo)) {
+                                // Limpa o IP (tira o /32)
+                                $ip_limpo = explode('/', $ip_wg_completo)[0];
+                                
+                                // Dá o UPDATE violento na tabela principal do MK-Auth
+                                $upNas = "UPDATE nas SET nasname = '{$ip_limpo}' WHERE id = {$id_nas_migrar}";
+                                if ($mysqli->query($upNas)) {
+                                    $ok_count++;
+                                    
+                                    // Log para auditoria
+                                    file_put_contents(
+                                        '/tmp/wg_bulk_efetivar.debug',
+                                        date('c') . " EFETIVAR NAS {$id_nas_migrar} para IP {$ip_limpo} (Peer ID {$id_row})\n",
+                                        FILE_APPEND
+                                    );
+                                } else {
+                                    $err_count++;
+                                }
+                            } else {
+                                $err_count++; // Não tem NAS atrelado ou IP vazio
+                            }
+                        } else {
+                            $err_count++;
+                        }
                     }
-                }
+                } // Fim do loop while ($row = $resSel->fetch_assoc())						
 
                 $resSel->close();
 

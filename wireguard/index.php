@@ -3,7 +3,7 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// INCLUI FUNÇÕES DE ADDONS -----------------------------------------------------------------------
+// INCLUI FUNÇÕES DE ADDONS
 include('addons.class.php');
 
 // Garantir não duplicidade de post
@@ -251,416 +251,10 @@ $total_rows        = 0;
 $ramais_list       = []; // garante que exista
 $wg_base_cidr      = '';
 
-// ----------------------
-// Downloads diretos (.conf)
-// ----------------------
-if (!$erro_db && isset($_GET['acao']) && $_GET['acao'] === 'download_conf') {
-    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-
-    if ($id > 0) {
-        $stmt = $mysqli->prepare("
-            SELECT peer_name, config_text
-            FROM wg_ramais
-            WHERE id = ?
-            LIMIT 1
-        ");
-        if ($stmt) {
-            $stmt->bind_param('i', $id);
-            $stmt->execute();
-            $stmt->bind_result($peer_name, $config_text);
-
-            if ($stmt->fetch() && $config_text !== null && $config_text !== '') {
-                $safe_name = preg_replace('/[^a-zA-Z0-9_-]+/', '_', $peer_name);
-                $filename  = 'wg-' . ($safe_name ?: 'peer') . '.conf';
-
-                header('Content-Type: application/x-wg-config');
-                header('Content-Disposition: attachment; filename="' . $filename . '"');
-                echo $config_text;
-                exit;
-            }
-
-            $stmt->close();
-        }
-    }
-}
-
-// ------------------------------------------------------------------
-// Modais de visualização (.conf, .rsc, wgimport string)
-// ------------------------------------------------------------------
-if (
-    !$erro_db &&
-    isset($_POST['acao_modal']) &&
-    in_array($_POST['acao_modal'], ['show_conf', 'show_rsc', 'show_wgstring'], true)
-) {
-    $id = isset($_POST['id_peer']) ? (int)$_POST['id_peer'] : 0;
-
-    if ($id > 0) {
-        $stmt = $mysqli->prepare("
-            SELECT peer_name, config_text, id_nas, ip_wg
-            FROM wg_ramais
-            WHERE id = ?
-            LIMIT 1
-        ");
-        if ($stmt) {
-            $stmt->bind_param('i', $id);
-            $stmt->execute();
-            $stmt->bind_result($peer_name, $config_text, $id_nas, $ip_wg);
-
-            if ($stmt->fetch() && $config_text !== null && $config_text !== '') {
-                $safe_name = preg_replace('/[^a-zA-Z0-9_-]+/', '_', $peer_name);
-                if ($safe_name === '') {
-                    $safe_name = 'peer';
-                }
-
-                if ($_POST['acao_modal'] === 'show_conf') {
-                    $_SESSION['wg_last_conf'] = $config_text;
-
-                } elseif ($_POST['acao_modal'] === 'show_wgstring') {
-                    $wg_string_cmd = normalizar_conf_para_wg_import($config_text);
-                    $wg_string_cmd .= "\n\n# ATENÇÃO: após importar, crie a rota estática para o servidor\n";
-                    $wg_string_cmd .= "# /ip route add dst-address=<SERVER_IP>/32 gateway=<WG_INTERFACE>\n";
-                    $_SESSION['wg_last_wgstring'] = $wg_string_cmd;
-
-				} elseif ($_POST['acao_modal'] === 'show_rsc') {
-					// gera o .rsc igual ao download_rsc, mas em memória
-					$lines = preg_split("/\r\n|\r|\n/", $config_text);
-
-					$ifacePrivate = '';
-					$ifaceAddress = '';
-					$peerPublic   = '';
-					$peerPsk      = '';
-					$peerEndpoint = '';
-					$peerAllowed  = '';
-					$peerKeep     = '';
-
-					$section = '';
-					foreach ($lines as $line) {
-						$line = trim($line);
-						if ($line === '' || strpos($line, '#') === 0) {
-							continue;
-						}
-
-						if (strcasecmp($line, '[Interface]') === 0) {
-							$section = 'iface';
-							continue;
-						} elseif (strcasecmp($line, '[Peer]') === 0) {
-							$section = 'peer';
-							continue;
-						}
-
-						$parts = explode('=', $line, 2);
-						if (count($parts) !== 2) {
-							continue;
-						}
-						$k = strtolower(trim($parts[0]));
-						$v = trim($parts[1]);
-
-						if ($section === 'iface') {
-							if ($k === 'privatekey') {
-								$ifacePrivate = $v;
-							} elseif ($k === 'address') {
-								$ifaceAddress = $v;
-							}
-						} elseif ($section === 'peer') {
-							if ($k === 'publickey') {
-								$peerPublic = $v;
-							} elseif ($k === 'presharedkey') {
-								$peerPsk = $v;
-							} elseif ($k === 'endpoint') {
-								$peerEndpoint = $v;
-							} elseif ($k === 'allowedips') {
-								$peerAllowed = $v;
-							} elseif ($k === 'persistentkeepalive') {
-								$peerKeep = $v;
-							}
-						}
-					}
-
-					$ifaceId   = (int)$id_nas;
-					if ($ifaceId <= 0) {
-						$ifaceId = (int)$id; // fallback: id do wg_ramais
-					}
-					$mtIfName  = 'wg-nas' . $ifaceId;
-					$mtComment = 'WG-' . $safe_name;
-
-					$rsc  = "";
-					$rsc .= "# WireGuard cliente gerado pelo MK-AUTH para " . $safe_name . "\n";
-					$rsc .= "# Ajuste nomes/endereços/conectividade conforme necessário antes de aplicar.\n\n";
-
-					$rsc .= "/interface wireguard\n";
-					$rsc .= "add name=\"" . $mtIfName . "\"";
-					if ($ifacePrivate !== '') {
-						$rsc .= " private-key=\"" . $ifacePrivate . "\"";
-					}
-					$rsc .= " listen-port=0 comment=\"" . $mtComment . "\"\n\n";
-
-					if ($ifaceAddress !== '') {
-						$rsc .= "/ip address\n";
-						$rsc .= "add address=" . $ifaceAddress . " interface=" . $mtIfName .
-								" comment=\"" . $mtComment . "\"\n\n";
-					}
-
-					$rsc .= "/interface wireguard peers\n";
-					$rsc .= "add interface=" . $mtIfName;
-					if ($peerPublic !== '') {
-						$rsc .= " public-key=\"" . $peerPublic . "\"";
-					}
-					if ($peerPsk !== '') {
-						$rsc .= " preshared-key=\"" . $peerPsk . "\"";
-					}
-					if ($peerAllowed !== '') {
-						$rsc .= " allowed-address=" . $peerAllowed;
-					}
-					if ($peerEndpoint !== '') {
-						$hp = explode(':', $peerEndpoint, 2);
-						if (count($hp) === 2) {
-							$rsc .= " endpoint-address=" . $hp[0] . " endpoint-port=" . (int)$hp[1];
-						} else {
-							$rsc .= " endpoint-address=" . $peerEndpoint;
-						}
-					}
-					if ($peerKeep !== '') {
-						$rsc .= " persistent-keepalive=" . (int)$peerKeep;
-					}
-					$rsc .= " comment=\"" . $mtComment . "\"\n\n";
-
-					if ($ifaceAddress !== '' && $peerAllowed !== '') {
-						$ipParts = explode('/', $ifaceAddress, 2);
-						$ipOnly  = trim($ipParts[0]);
-
-						$serverIp = null;
-						$allowedParts = explode(',', $peerAllowed);
-						foreach ($allowedParts as $p) {
-							$p = trim($p);
-							if ($p === '' || strpos($p, ':') !== false) {
-								continue;
-							}
-							$hp = explode('/', $p, 2);
-							if (!empty($hp[0])) {
-								$serverIp = trim($hp[0]);
-								break;
-							}
-						}
-
-						if ($ipOnly !== '' && $serverIp !== null) {
-							$rsc .= "/ip route\n";
-							$rsc .= "add dst-address=" . $serverIp . "/32 gateway=" . $mtIfName .
-									" comment=\"Rota MK-Auth WG " . $mtComment . "\"\n";
-						}
-					}
-
-					$_SESSION['wg_last_rsc'] = $rsc;
-				}
-            }
-            $stmt->close();
-        }
-    }
-
-    // sempre volta pra aba peers
-    header('Location: ?tab=peers');
-    exit;
-}
-
-// Download: wgimport.file, wgimport string e .rsc
-if (
-    !$erro_db &&
-    isset($_GET['acao']) &&
-    in_array($_GET['acao'], ['download_conf', 'download_wgstring', 'download_rsc'], true)
-) {
-    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-
-    if ($id > 0) {
-        $stmt = $mysqli->prepare("
-            SELECT peer_name, config_text, id_nas, ip_wg
-            FROM wg_ramais
-            WHERE id = ?
-            LIMIT 1
-        ");
-        if ($stmt) {
-            $stmt->bind_param('i', $id);
-            $stmt->execute();
-            $stmt->bind_result($peer_name, $config_text, $id_nas, $ip_wg);
-
-            if ($stmt->fetch() && $config_text !== null && $config_text !== '') {
-                $stmt->close();
-
-                $safe_name = preg_replace('/[^a-zA-Z0-9_-]+/', '_', $peer_name);
-                if ($safe_name === '') {
-                    $safe_name = 'peer';
-                }
-
-                $acao = $_GET['acao'];
-
-				if ($acao === 'download_conf') {
-					header('Content-Type: text/plain');
-					header('Content-Disposition: attachment; filename="' . $safe_name . '.conf"');
-					echo $config_text;
-					exit;
-
-				} elseif ($acao === 'download_wgstring') {
-					$wg_string_cmd = normalizar_conf_para_wg_import($config_text);
-
-					// aviso no final
-					$wg_string_cmd .= "\n\n# ATENÇÃO: após importar, crie a rota estática para o servidor\n";
-					$wg_string_cmd .= "# /ip route add dst-address=<SERVER_IP>/32 gateway=<WG_INTERFACE>\n";
-
-					header('Content-Type: text/plain');
-					header('Content-Disposition: attachment; filename="wgimport-' . $safe_name . '.txt"');
-					echo $wg_string_cmd;
-					exit;
-					
-} elseif ($acao === 'download_rsc') {
-    // 3) .rsc: script Mikrotik gerado a partir do config_text
-
-    $lines = preg_split("/\r\n|\r|\n/", $config_text);
-
-    $ifacePrivate = '';
-    $ifaceAddress = '';
-    $peerPublic   = '';
-    $peerPsk      = '';
-    $peerEndpoint = '';
-    $peerAllowed  = '';
-    $peerKeep     = '';
-
-    $section = '';
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if ($line === '' || strpos($line, '#') === 0) {
-            continue;
-        }
-
-        if (strcasecmp($line, '[Interface]') === 0) {
-            $section = 'iface';
-            continue;
-        } elseif (strcasecmp($line, '[Peer]') === 0) {
-            $section = 'peer';
-            continue;
-        }
-
-        $parts = explode('=', $line, 2);
-        if (count($parts) !== 2) {
-            continue;
-        }
-        $k = strtolower(trim($parts[0]));
-        $v = trim($parts[1]);
-
-        if ($section === 'iface') {
-            if ($k === 'privatekey') {
-                $ifacePrivate = $v;
-            } elseif ($k === 'address') {
-                $ifaceAddress = $v; // ex: 10.66.66.157/32
-            }
-        } elseif ($section === 'peer') {
-            if ($k === 'publickey') {
-                $peerPublic = $v;
-            } elseif ($k === 'presharedkey') {
-                $peerPsk = $v;
-            } elseif ($k === 'endpoint') {
-                $peerEndpoint = $v; // host:port
-            } elseif ($k === 'allowedips') {
-                $peerAllowed = $v;
-            } elseif ($k === 'persistentkeepalive') {
-                $peerKeep = $v;
-            }
-        }
-    }
-
-    // nome de interface baseado em id_nas: wg-nas<IDNAS>
-    $ifaceId   = (int)$id_nas;
-    if ($ifaceId <= 0) {
-        $ifaceId = (int)$id; // fallback: id do wg_ramais
-    }
-    $mtIfName  = 'wg-nas' . $ifaceId;       // ex: wg-nas1
-    $mtComment = 'WG-' . $safe_name;
-
-    $rsc  = "";
-    $rsc .= "# WireGuard cliente gerado pelo MK-AUTH para " . $safe_name . "\n";
-    $rsc .= "# Ajuste nomes/endereços/conectividade conforme necessário antes de aplicar.\n\n";
-
-    // cria interface
-    $rsc .= "/interface wireguard\n";
-    $rsc .= "add name=\"" . $mtIfName . "\"";
-    if ($ifacePrivate !== '') {
-        $rsc .= " private-key=\"" . $ifacePrivate . "\"";
-    }
-    $rsc .= " listen-port=0 comment=\"" . $mtComment . "\"\n\n";
-
-    // endereço na interface (se tiver Address no conf)
-    if ($ifaceAddress !== '') {
-        $rsc .= "/ip address\n";
-        $rsc .= "add address=" . $ifaceAddress . " interface=" . $mtIfName .
-                " comment=\"" . $mtComment . "\"\n\n";
-    }
-
-    // cria peer
-    $rsc .= "/interface wireguard peers\n";
-    $rsc .= "add interface=" . $mtIfName;
-    if ($peerPublic !== '') {
-        $rsc .= " public-key=\"" . $peerPublic . "\"";
-    }
-    if ($peerPsk !== '') {
-        $rsc .= " preshared-key=\"" . $peerPsk . "\"";
-    }
-    if ($peerAllowed !== '') {
-        // aqui você pode já forçar a /24 se quiser,
-        // mas como você vai trabalhar com /24 no servidor,
-        // provavelmente o AllowedIPs já virá adequado.
-        $rsc .= " allowed-address=" . $peerAllowed;
-    }
-    if ($peerEndpoint !== '') {
-        $hp = explode(':', $peerEndpoint, 2);
-        if (count($hp) === 2) {
-            $rsc .= " endpoint-address=" . $hp[0] . " endpoint-port=" . (int)$hp[1];
-        } else {
-            $rsc .= " endpoint-address=" . $peerEndpoint;
-        }
-    }
-    if ($peerKeep !== '') {
-        $rsc .= " persistent-keepalive=" . (int)$peerKeep;
-    }
-    $rsc .= " comment=\"" . $mtComment . "\"\n\n";
-
-	// rota estática apontando para o IP do servidor WG (primeiro IPv4 do AllowedIPs)
-	// usando como gateway o IP local do túnel (ifaceAddress)
-	if ($ifaceAddress !== '' && $peerAllowed !== '') {
-		// ifaceAddress vem tipo "172.16.1.140/32"
-		$ipParts = explode('/', $ifaceAddress, 2);
-		$ipOnly  = trim($ipParts[0]);                 // IP do cliente (gateway)
-
-		// peerAllowed vem tipo "172.16.1.1/32,172.16.1.140/32"
-		$serverIp = null;
-		$allowedParts = explode(',', $peerAllowed);
-		foreach ($allowedParts as $p) {
-			$p = trim($p);
-			if ($p === '' || strpos($p, ':') !== false) {
-				continue; // pula vazio/IPv6
-			}
-			$hp = explode('/', $p, 2);
-			if (!empty($hp[0])) {
-				$serverIp = trim($hp[0]); // pega o primeiro IPv4 (server)
-				break;
-			}
-		}
-
-		if ($ipOnly !== '' && $serverIp !== null) {
-			$rsc .= "/ip route\n";
-			$rsc .= "add dst-address=" . $serverIp . "/32 gateway=" . $mtIfName .
-					" comment=\"Rota MK-Auth WG " . $mtComment . "\"\n";
-		}
-	}
-
-    header('Content-Type: text/plain');
-    header('Content-Disposition: attachment; filename="wg-' . $safe_name . '.rsc"');
-    echo $rsc;
-    exit;
-}
-
-            } else {
-                $stmt->close();
-            }
-        }
-    }
-}
+// ----------------------------------------------------------------------------------------------
+// Gerenciamento de Downloads e Modais de Visualização (conf, rsc, wgimport)
+// ----------------------------------------------------------------------------------------------
+include __DIR__ . '/wg_downloads.php';
 
 // ----------------------
 // Carregar status/versão + dados por aba
@@ -810,28 +404,31 @@ if (!$erro_db) {
             $stmtRam->close();
         }
 
-    } elseif ($tab === 'provisionar') {
+        } elseif ($tab === 'provisionar') {
 
-        // Rede base: usa $current_network (resolve fallback UP → status, DOWN → server-get-config)
-        // $current_network = "10.178.52.1/24" (host do servidor)
-        // $wg_base_cidr    = "10.178.52.0/24" (rede real)
-        $wg_server_host = $current_network;
-        $wg_base_cidr   = $current_network !== '' ? cidr_to_network($current_network) : '';
-        $wg_max_peers   = $wg_base_cidr !== '' ? cidr_max_peers($wg_base_cidr) : 0;
-		
-        $sqlRamais = "
-            SELECT
-                n.id          AS id_nas,
-                n.shortname,
-                n.nasname,
-                n.bairro,
-                w.id          AS wg_id,
-                w.peer_name   AS wg_peer_name,
-                w.ip_wg       AS wg_ip
-            FROM nas n
-            LEFT JOIN wg_ramais w ON w.id_nas = n.id
-            ORDER BY n.id ASC
-        ";
+            // Rede base: usa $current_network
+            $wg_server_host = $current_network;
+            $wg_base_cidr   = $current_network !== '' ? cidr_to_network($current_network) : '';
+            $wg_max_peers   = $wg_base_cidr !== '' ? cidr_max_peers($wg_base_cidr) : 0;
+            
+            // 🚀 SELECT TURBINADO PARA O OTP DIAGNÓSTICO
+            $sqlRamais = "
+                SELECT
+                    n.id          AS id_nas,
+                    n.shortname,
+                    n.nasname,
+                    n.ipfall,     -- Novo: IP Público
+                    n.senha,      -- Novo: Senha MK-AUTH
+                    n.secret,     -- Novo: Secret Radius
+                    n.portassh,   -- Novo: Porta SSH
+                    w.id          AS wg_id,
+                    w.peer_name   AS wg_peer_name,
+                    w.ip_wg       AS wg_ip,
+					w.status      AS wg_status
+                FROM nas n
+                LEFT JOIN wg_ramais w ON w.id_nas = n.id
+                ORDER BY n.id ASC
+            ";
         if ($res = $mysqli->query($sqlRamais)) {
             while ($row = $res->fetch_assoc()) {
                 $ramais_list[] = $row;
@@ -1892,6 +1489,19 @@ if (!isset($snapshots)) {
 			}
 		}
 	}
+
+	// HELPER: Converter Bytes para KB, MB, GB (Human-like)
+	if (!function_exists('humanBytes')) {
+		function humanBytes($bytes, $precision = 2) {
+			$bytes = (float) $bytes;
+			if ($bytes <= 0) return '<span class="has-text-grey-light">0 B</span>';
+			$units = array('B', 'KB', 'MB', 'GB', 'TB');
+			$pow = floor(log($bytes) / log(1024));
+			$pow = min($pow, count($units) - 1);
+			$bytes /= pow(1024, $pow);
+			return round($bytes, $precision) . ' ' . $units[$pow];
+		}
+	}
 	?>
 
 	<div class="box">
@@ -1914,9 +1524,18 @@ if (!isset($snapshots)) {
 				$mapRamaisByPub[$r['public_key']] = $r;
 			}
 		}
+		
+		// --- NOVO: BUSCA OS IPs ATUAIS DO SISTEMA MK-AUTH ---
+		$query_nas = $mysqli->query("SELECT id, nasname FROM nas");
+		$mapNasIP = [];
+		if ($query_nas) {
+			while ($row_nas = $query_nas->fetch_assoc()) {
+				$mapNasIP[$row_nas['id']] = trim($row_nas['nasname']);
+			}
+		}
 		?>
 
-		<!-- Filtro (Mais limpo com as classes CSS novas) -->
+		<!-- Filtro -->
 		<form method="get" class="field is-grouped" style="margin-bottom: 1.5rem;">
 			<input type="hidden" name="tab" value="peers">
 
@@ -1951,7 +1570,7 @@ if (!isset($snapshots)) {
 			</div>
 		</form>
 
-		<!-- Modais invisíveis (Mantido intacto) -->
+		<!-- Modais invisíveis -->
 		<form method="post" action="?tab=peers" id="form_modal_conf" style="display:none;">
 		  <input type="hidden" name="acao_modal" value="show_conf">
 		  <input type="hidden" name="id_peer" id="modal_conf_id" value="">
@@ -1979,14 +1598,13 @@ if (!isset($snapshots)) {
 							<input type="checkbox" id="check_all_peers" onclick="toggleAllPeers(this)">
 						</th>
 						<th>Nome</th>
-						<th>NAS</th>
-						<th>IP WG</th>
-						<th>Allowed IPs</th>
+						<th>IP WireGuard</th>
+						<th>Status do Túnel</th>
 						<th>Endpoint</th>
 						<th>Último Handshake</th>
 						<th>Rx</th>
 						<th>Tx</th>
-						<th>Status</th>
+						<th>Status do Peer</th>
 						<th>Ações</th>
 					</tr>
 				</thead>
@@ -2002,9 +1620,35 @@ if (!isset($snapshots)) {
 						<?php
 						$pub   = $c['publicKey'] ?? '';
 						$linha = $mapRamaisByPub[$pub] ?? null;
+						
+						// --- LÓGICA DE COMPARAÇÃO DE IP (MAQUETE) ---
+						$is_maquete = false;
+						if ($linha && !empty($linha['id_nas'])) {
+							$id_nas_atual = $linha['id_nas'];
+							$ip_wg_limpo = explode('/', $linha['ip_wg'])[0]; // tira o /32
+							$ip_mk_atual = $mapNasIP[$id_nas_atual] ?? '';
+							
+							if ($ip_wg_limpo !== $ip_mk_atual && $ip_mk_atual !== '') {
+								$is_maquete = true;
+							}
+						}
+						
+						// --- LÓGICA DE ONLINE INICIAL (3 Minutos) ---
+						$is_online = false;
+						$dt_handshake = !empty($c['latestHandshakeAt']) ? $c['latestHandshakeAt'] : ($linha['latest_handshake_at'] ?? '');
+						
+						if (!empty($dt_handshake)) {
+							$tempo_passado = time() - strtotime($dt_handshake);
+							if ($tempo_passado < 180) { // 180 segundos = 3 min
+								$is_online = true;
+							}
+						}
 						?>
-						<tr>
-							<td>
+						
+						<!-- 🎯 ÂNCORA 1: TR recebe a classe 'wg-peer-row' e 'data-pubkey' pro JS achar a linha exata -->
+						<tr class="wg-peer-row" data-pubkey="<?php echo htmlspecialchars($pub); ?>">
+							
+							<td class="is-vcentered">
 								<?php if ($linha): ?>
 									<input type="checkbox"
 										   name="peer_ids[]"
@@ -2012,12 +1656,11 @@ if (!isset($snapshots)) {
 										   class="peer-checkbox">
 								<?php endif; ?>
 							</td>
-							<td><strong><?php echo $linha ? htmlspecialchars($linha['peer_name']) : '-'; ?></strong></td>
-							<td><?php echo $linha ? (int)$linha['id_nas'] : '-'; ?></td>
-							<td>
+							<td class="is-vcentered"><strong><?php echo $linha ? htmlspecialchars($linha['peer_name']) : '-'; ?></strong></td>
+							<td class="is-vcentered">
 							<?php if ($linha): ?>
 								<input class="input ip-input"
-									   style="width: 100%; max-width: 180px; height: 28px; font-size: 0.85rem;"
+									   style="width: 100%; min-width: 140px; height: 28px; font-size: 0.85rem; padding-left: 8px;"
 									   type="text"
 									   name="address_inline[<?php echo (int)$linha['id']; ?>]"
 									   value="<?php echo htmlspecialchars($linha['ip_wg']); ?>"
@@ -2026,25 +1669,79 @@ if (!isset($snapshots)) {
 								-
 							<?php endif; ?>
 							</td>
-							<td><code style="font-size:0.75rem; background:#f1f5f9; padding:0.2rem 0.4rem; border-radius:4px;"><?php echo htmlspecialchars($c['allowedIPs']); ?></code></td>
-							<td><span style="font-size:0.85rem; color:#64748b;"><?php echo htmlspecialchars($c['endpoint']); ?></span></td>
-							<td style="font-size:0.85rem; color:#475569;">
-								<?php
-								// Chamada da nova função de data
-								$dt = '';
-								if (!empty($c['latestHandshakeAt'])) {
-									$dt = $c['latestHandshakeAt'];
-								} elseif ($linha && !empty($linha['latest_handshake_at'])) {
-									$dt = $linha['latest_handshake_at'];
-								}
-								echo formataDataRelativa($dt);
-								?>
-							</td>
-							<td style="font-size:0.85rem;"><?php echo (int)$c['transferRx']; ?></td>
-							<td style="font-size:0.85rem;"><?php echo (int)$c['transferTx']; ?></td>
 							
-							<!-- STATUS COM TAGS VIZUAIS -->
-							<td>
+							<!-- 🎯 ÂNCORA 2: STATUS DO TÚNEL - Span ganha 'wg-btn-status' -->
+							<td class="is-vcentered" style="white-space: nowrap;">
+								<?php if ($linha && !empty($linha['id_nas'])): ?>
+									<?php if ($is_maquete): ?>
+										<span class="tag wg-btn-status <?php echo $is_online ? 'status-online-glow' : ''; ?>" 
+											  title="O IP no cadastro do RAMAL ainda é o antigo e deve ser atualizado, faça isso usando as setas após o termino da integração e vizualiar o handshake do túnel." 
+											  style="background-color: #ffedd5; color: #c2410c; border: 1px solid #fb923c; font-weight: 600;">
+											<i class="bi bi-diagram-2 mr-1"></i> Em Paralelo
+										</span>
+									<?php else: ?>
+										<span class="tag wg-btn-status <?php echo $is_online ? 'status-online-glow' : ''; ?>" style="background-color: #4ade80; color: #000000; border: 1px solid #22c55e; font-weight: 600;" title="Este IP já é o principal no MK-Auth">
+											<i class="bi bi-check-circle-fill mr-1"></i> Operacional
+										</span>
+									<?php endif; ?>
+								<?php else: ?>
+									<span class="has-text-grey-light">-</span>
+								<?php endif; ?>
+							</td>
+
+							<td class="is-vcentered">
+								<?php if (!empty($c['endpoint'])): ?>
+									<code style="background-color: #f1f5f9; color: #475569; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; border: 1px solid #e2e8f0; white-space: nowrap;">
+										<?php echo htmlspecialchars($c['endpoint']); ?>
+									</code>
+								<?php else: ?>
+									<span style="color: #94a3b8;">-</span>
+								<?php endif; ?>
+							</td>
+							
+							<!-- 🎯 ÂNCORA 3: ÚLTIMO HANDSHAKE - Mãozinha + Data + Raiozinho -->
+							<td class="is-vcentered" style="font-size:0.85rem; color:#475569; white-space: nowrap;">
+								<?php if (!empty($dt_handshake)): ?>
+									<?php if ($is_online): ?>
+										<!-- Mãozinha Azul (Esquerda) -->
+										<i class="fa fa-handshake-o mr-1" style="color: #0ea5e9; font-size: 0.95rem;" title="Handshake estabelecido"></i>
+										
+										<!-- Texto da Data (Centro) -->
+										<span><?php echo formataDataRelativa($dt_handshake); ?></span>
+										
+										<!-- Raiozinho Pulsante Verde (Direita) -->
+										<i class="bi bi-activity wg-icon-handshake icon-online ml-2" title="Túnel Ativo e Comunicando!"></i>
+									<?php else: ?>
+										<!-- Mãozinha Cinza (Esquerda) -->
+										<i class="fa fa-handshake-o has-text-grey-light mr-1" style="font-size: 0.95rem;"></i>
+										
+										<!-- Texto da Data (Centro) -->
+										<span class="has-text-grey-light"><?php echo formataDataRelativa($dt_handshake); ?></span>
+										
+										<!-- Raiozinho Cinza e Parado (Direita) -->
+										<i class="bi bi-activity wg-icon-handshake has-text-grey-light ml-2" title="Túnel Parado"></i>
+									<?php endif; ?>
+								<?php else: ?>
+									<span class="has-text-grey-light">-</span>
+								<?php endif; ?>
+							</td>
+														
+							<!-- 🎯 ÂNCORA 4: RX (Download) - Ganha 'wg-rx-cell', 'data-bytes' e '.texto-bytes' -->
+							<td class="is-vcentered has-text-right" style="white-space: nowrap;">
+								<span class="tag is-light is-info wg-rx-cell" data-bytes="<?php echo (int)$c['transferRx']; ?>" style="font-family: 'Consolas', monospace; font-weight: 600; min-width: 90px; justify-content: flex-end;">
+									<i class="bi bi-arrow-down mr-1"></i> <span class="texto-bytes"><?php echo humanBytes((int)$c['transferRx']); ?></span>
+								</span>
+							</td>
+
+							<!-- 🎯 ÂNCORA 5: TX (Upload) - Ganha 'wg-tx-cell', 'data-bytes' e '.texto-bytes' -->
+							<td class="is-vcentered has-text-right" style="white-space: nowrap;">
+								<span class="tag is-light is-warning wg-tx-cell" data-bytes="<?php echo (int)$c['transferTx']; ?>" style="font-family: 'Consolas', monospace; font-weight: 600; min-width: 90px; justify-content: flex-end;">
+									<i class="bi bi-arrow-up mr-1"></i> <span class="texto-bytes"><?php echo humanBytes((int)$c['transferTx']); ?></span>
+								</span>
+							</td>
+							
+							<!-- STATUS DO PEER (VPN) -->
+							<td class="is-vcentered">
 								<?php if ($linha): ?>
 									<?php if ($linha['status'] === 'enabled'): ?>
 										<span class="tag is-success is-light" style="font-weight: 700; font-size: 0.7rem; height: 20px;">enabled</span>
@@ -2056,26 +1753,36 @@ if (!isset($snapshots)) {
 								<?php endif; ?>
 							</td>
 
-							<!-- AÇÕES (Pílulas Azuis) -->
-							<td style="white-space: nowrap;">
+							<!-- AÇÕES -->
+							<td class="is-vcentered" style="white-space: nowrap;">
 							  <?php if ($linha && !empty($linha['config_text'])): ?>
 								
-								<!-- Botão .conf -->
-								<div style="display: inline-flex; background: #f0f9ff; border-radius: 6px; border: 1px solid #e0f2fe; margin-right: 0.25rem; overflow: hidden; transition: all 0.2s ease;">
-									<a href="?tab=peers&acao=download_conf&id=<?php echo (int)$linha['id']; ?>" style="padding: 0.2rem 0.5rem; color: #0284c7; font-weight: 600; font-size: 0.75rem; text-decoration: none; border-right: 1px solid #e0f2fe; background: #f0f9ff;" title="Baixar">.conf</a>
-									<a href="#" onclick="abrirConfModal(<?php echo (int)$linha['id']; ?>); return false;" style="padding: 0.2rem 0.4rem; color: #0ea5e9; background: #f0f9ff; display: flex; align-items: center;" title="Ver"><i class="bi-files"></i></a>
+								<!-- 1. BOTÃO .RSC (Sempre visível e seguro) -->
+								<div style="display: inline-flex; background: #f0f9ff; border-radius: 6px; border: 1px solid #e0f2fe; margin-right: 0.25rem; overflow: hidden;">
+									<a href="?tab=peers&acao=download_rsc&id=<?php echo (int)$linha['id']; ?>" style="padding: 0.2rem 0.5rem; color: #0284c7; font-weight: 600; font-size: 0.75rem; text-decoration: none; border-right: 1px solid #e0f2fe; background: #f0f9ff;" title="Baixar Script Inteligente">.rsc</a>
+									<a href="#" onclick="abrirRscModal(<?php echo (int)$linha['id']; ?>); return false;" style="padding: 0.2rem 0.4rem; color: #0ea5e9; background: #f0f9ff; display: flex; align-items: center;" title="Ver Script Inteligente"><i class="bi-files"></i></a>
 								</div>
 
-								<!-- Botão .rsc -->
-								<div style="display: inline-flex; background: #f0f9ff; border-radius: 6px; border: 1px solid #e0f2fe; margin-right: 0.25rem; overflow: hidden; transition: all 0.2s ease;">
-									<a href="?tab=peers&acao=download_rsc&id=<?php echo (int)$linha['id']; ?>" style="padding: 0.2rem 0.5rem; color: #0284c7; font-weight: 600; font-size: 0.75rem; text-decoration: none; border-right: 1px solid #e0f2fe; background: #f0f9ff;" title="Baixar">.rsc</a>
-									<a href="#" onclick="abrirRscModal(<?php echo (int)$linha['id']; ?>); return false;" style="padding: 0.2rem 0.4rem; color: #0ea5e9; background: #f0f9ff; display: flex; align-items: center;" title="Ver"><i class="bi-files"></i></a>
-								</div>
+									<!-- 2. BOTÃO GATILHO DO SUSTO -->
+									<button type="button" id="btn_nativas_<?php echo (int)$linha['id']; ?>" class="button is-small is-warning is-light wg-btn-perigo" style="border-radius: 6px; font-weight: bold; border: 1px solid #fcd34d; height: 26px; padding: 0 8px; vertical-align: bottom; margin-right: 0.25rem;" onclick="revelarPerigo(<?php echo (int)$linha['id']; ?>)" title="Mostrar funções nativas">
+										⚠️ WG Import
+									</button>
 
-								<!-- Botão wgimport -->
-								<div style="display: inline-flex; background: #f0f9ff; border-radius: 6px; border: 1px solid #e0f2fe; overflow: hidden; transition: all 0.2s ease;">
-									<a href="?tab=peers&acao=download_wgstring&id=<?php echo (int)$linha['id']; ?>" style="padding: 0.2rem 0.5rem; color: #0284c7; font-weight: 600; font-size: 0.75rem; text-decoration: none; border-right: 1px solid #e0f2fe; background: #f0f9ff;" title="Baixar">wgimport</a>
-									<a href="#" onclick="abrirWgStringModal(<?php echo (int)$linha['id']; ?>); return false;" style="padding: 0.2rem 0.4rem; color: #0ea5e9; background: #f0f9ff; display: flex; align-items: center;" title="Ver"><i class="bi-files"></i></a>
+								<!-- 3. CONTAINER ESCONDIDO DOS BOTÕES PERIGOSOS (.conf e wg-string) -->
+								<div id="botoes_perigo_<?php echo (int)$linha['id']; ?>" style="display: none; vertical-align: bottom;">
+									
+									<!-- Botão .conf (Com tom avermelhado) -->
+									<div style="display: inline-flex; background: #fff1f2; border-radius: 6px; border: 1px solid #ffe4e6; margin-right: 0.25rem; overflow: hidden;">
+										<a href="?tab=peers&acao=download_conf&id=<?php echo (int)$linha['id']; ?>" style="padding: 0.2rem 0.5rem; color: #e11d48; font-weight: 600; font-size: 0.75rem; text-decoration: none; border-right: 1px solid #ffe4e6; background: #fff1f2;" title="Aviso: Usar fora do sistema requer atenção">.conf</a>
+										<a href="#" onclick="abrirConfModal(<?php echo (int)$linha['id']; ?>); return false;" style="padding: 0.2rem 0.4rem; color: #f43f5e; background: #fff1f2; display: flex; align-items: center;" title="Ver .conf"><i class="bi-files"></i></a>
+									</div>
+
+									<!-- Botão wg-string (Com tom avermelhado) -->
+									<div style="display: inline-flex; background: #fff1f2; border-radius: 6px; border: 1px solid #ffe4e6; overflow: hidden;">
+										<a href="?tab=peers&acao=download_wgstring&id=<?php echo (int)$linha['id']; ?>" style="padding: 0.2rem 0.5rem; color: #e11d48; font-weight: 600; font-size: 0.75rem; text-decoration: none; border-right: 1px solid #ffe4e6; background: #fff1f2;" title="Aviso: wg-import nativo é falho">wgimport</a>
+										<a href="#" onclick="abrirWgStringModal(<?php echo (int)$linha['id']; ?>); return false;" style="padding: 0.2rem 0.4rem; color: #f43f5e; background: #fff1f2; display: flex; align-items: center;" title="Ver wgimport"><i class="bi-files"></i></a>
+									</div>
+
 								</div>
 
 							  <?php else: ?>
@@ -2088,12 +1795,11 @@ if (!isset($snapshots)) {
 				</tbody>
 			</table>
 
-			<!-- Barra de ações em massa (Ícones Gigantes Padrão MK-AUTH) -->
+			<!-- Barra de ações em massa -->
 			<div class="block" id="acao_selecao_peers" style="margin-top: 1.5rem;">
 			  <nav class="level is-mobile">
 				<div class="level-left" style="gap: 15px;">
 
-				  <!-- Entrar em modo edição de IPs (lápis azul) -->
 				  <div class="level-item" id="wrap_enter_edit_ip">
 					<a href="#" id="btn_enter_edit_ip" title="Editar IP dos peers selecionados">
 					  <span class="icon has-text-info">
@@ -2102,7 +1808,6 @@ if (!isset($snapshots)) {
 					</a>
 				  </div>
 
-				  <!-- Salvar IP (Check Verde - Antigo Disquete) -->
 				  <div class="level-item" id="wrap_save_ip_bulk" style="display:none;">
 					<a href="#" id="btn_save_ip_bulk" title="Confirmar novo IP">
 					  <span class="icon has-text-success">
@@ -2111,7 +1816,6 @@ if (!isset($snapshots)) {
 					</a>
 				  </div>
 
-				  <!-- Cancelar edição de IPs (X vermelho) -->
 				  <div class="level-item" id="wrap_cancel_edit_ip" style="display:none;">
 					<a href="#" id="btn_cancel_edit_ip" title="Cancelar edição">
 					  <span class="icon has-text-danger">
@@ -2119,8 +1823,15 @@ if (!isset($snapshots)) {
 					  </span>
 					</a>
 				  </div>
-
-				  <!-- Habilitar peers (Ligar verde) -->
+				  
+				  <div class="level-item">
+					<a href="#" title="Efetivar Rota (Atualizar IP dos NAS selecionados no MK-Auth)" onclick="if(confirm('Tem certeza que deseja EFETIVAR os peers selecionados?\nIsso atualizará o IP no cadastro do MK-Auth, fazendo a comunicação ocorrer exclusivamente pelo WireGuard.')) { return submitPeersBulk('efetivar_ip'); } return false;">
+					  <span class="icon" style="color: #8b5cf6;">
+						<i class="bi-arrow-left-right" style="font-size: 30px"></i>
+					  </span>
+					</a>
+				  </div>
+				  
 				  <div class="level-item">
 					<a href="#" title="Habilitar peers selecionados" onclick="return submitPeersBulk('enable');">
 					  <span class="icon has-text-success">
@@ -2129,7 +1840,6 @@ if (!isset($snapshots)) {
 					</a>
 				  </div>
 
-				  <!-- Desabilitar peers (Desligar vermelho) -->
 				  <div class="level-item">
 					<a href="#" title="Desabilitar peers selecionados" onclick="return submitPeersBulk('disable');">
 					  <span class="icon has-text-danger">
@@ -2138,7 +1848,6 @@ if (!isset($snapshots)) {
 					</a>
 				  </div>
 
-				  <!-- Excluir peers (Lixeira vermelha) -->
 				  <div class="level-item">
 					<a href="#" title="Excluir peers selecionados" onclick="return submitPeersBulk('delete');">
 					  <span class="icon has-text-danger">
@@ -2150,18 +1859,18 @@ if (!isset($snapshots)) {
 				</div>
 			  </nav>
 
-			  <!-- select escondido pra bulk_peers continuar igual -->
 			  <select name="bulk_action" id="bulk_action_peers" style="display:none;">
 				<option value="">-</option>
 				<option value="disable">disable</option>
 				<option value="enable">enable</option>
 				<option value="delete">delete</option>
+				<option value="efetivar_ip">efetivar_ip</option>
 			  </select>
 			</div>
 			
 		</form>
 
-		<!-- Lógica de Paginação (Mantida Intacta) -->
+		<!-- Lógica de Paginação -->
 		<?php
 		$total_pages = ($per_page > 0) ? (int)ceil($total_rows / $per_page) : 1;
 		if ($total_pages < 1) {
@@ -2205,7 +1914,7 @@ if (!isset($snapshots)) {
 		<?php endif; ?>
 	</div>
 
-<!-- Os mesmos Modais para ver texto mantidos intactos -->
+<!-- Os mesmos Modais -->
 <?php if (!empty($_SESSION['wg_last_conf'])): ?>
 <div class="modal is-active" id="modal_conf">
   <div class="modal-background" onclick="fecharConfModal();"></div>
@@ -2268,156 +1977,246 @@ if (!isset($snapshots)) {
 <?php endif; ?>
 
 <?php elseif ($tab === 'provisionar'): ?>
-	<div class="box custom-card" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 2rem;">
-		
-		<!-- Cabeçalho -->
-		<div class="media align-items-center mb-5">
-			<div class="media-left">
-				<span class="icon is-large has-text-link" style="background: #eff5fb; border-radius: 12px; height: 3rem; width: 3rem;">
-					<i class="bi-hdd-network-fill" style="font-size: 1.8rem;"></i>
-				</span>
-			</div>
-			<div class="media-content">
-				<h2 class="title is-4 mb-1">Provisionar Ramais (NAS) em massa</h2>
-				<p class="subtitle is-6 has-text-grey">Crie e gerencie peers WireGuard para múltiplos equipamentos de uma vez.</p>
-			</div>
-		</div>
 
-		<form method="post" action="?tab=provisionar" id="form_provisionar">
-			<input type="hidden" name="acao" value="provisionar_ramais">
+<div class="box custom-card" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 2rem; background: #fafafa;">
+    
+    <form id="form_provisionar" method="POST" action="?tab=provisionar">
+        
+        <!-- Ação exata que o Backend espera -->
+        <input type="hidden" name="acao" value="provisionar_ramais">
 
-			<!-- Dois Cards Lado a Lado -->
-			<div class="columns is-multiline mb-5">
-				
-				<!-- CARD 1: Rede Base -->
-				<div class="column is-6">
-					<div class="box" style="height: 100%; display: flex; flex-direction: column; border-radius: 10px; border: 1px solid #eef0f3; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-						<h3 class="subtitle is-6 has-text-grey-dark mb-3">
-							<i class="bi-diagram-3 mr-1"></i> Rede base WireGuard (wg0)
-						</h3>
-						
-						<!-- IP Gigante em destaque -->
-						<div class="is-size-2 has-text-weight-bold has-text-dark mb-3" style="letter-spacing: -1px;">
-							<?php echo htmlspecialchars($wg_base_cidr); ?>
-						</div>
-						
-						<!-- Input escondido para enviar no POST -->
-						<input type="hidden" name="wg_base_cidr" value="<?php echo htmlspecialchars($wg_base_cidr); ?>">
-						
-						<!-- Textos menores empurrados para o final do card -->
-						<div class="mt-auto">
-							<?php if ($wg_server_host !== '' && $wg_max_peers > 0): ?>
-								<span class="tag is-info mb-1">Server host: <?php echo htmlspecialchars($wg_server_host); ?></span>
-								<p class="is-size-7 has-text-grey">A configuração atual permite até <strong><?php echo number_format($wg_max_peers, 0, ',', '.'); ?></strong> ramais (RBs) nesta rede.</p>
-							<?php elseif ($wg_server_host !== ''): ?>
-								<p class="is-size-7 has-text-grey">Server host: <code><?php echo htmlspecialchars($wg_server_host); ?></code></p>
-							<?php else: ?>
-								<p class="has-text-danger is-size-7"><i class="bi-exclamation-triangle"></i> Configure a interface WireGuard primeiro.</p>
-							<?php endif; ?>
-						</div>
-					</div>
-				</div>
+        <!-- NOVO LAYOUT EM 3 CARDS (Intro, Rede, Integração) -->
+        <div class="columns is-multiline mb-5">
+            
+            <!-- CARD 1: Título e Explicação -->
+            <div class="column is-4">
+                <div class="box" style="height: 100%; border-radius: 10px; border: 1px solid #eef0f3; box-shadow: 0 2px 8px rgba(0,0,0,0.02); background: #ffffff;">
+                    <div class="mb-4">
+                        <span class="icon is-large has-text-link" style="background: #eff5fb; border-radius: 12px; height: 3.5rem; width: 3.5rem;">
+                            <i class="bi bi-hdd-network-fill" style="font-size: 1.8rem;"></i>
+                        </span>
+                    </div>
+                    <h2 class="title is-4 mb-2" style="color: #1e293b;">Provisionar NAS</h2>
+                    <p class="has-text-grey is-size-6" style="line-height: 1.5;">
+                        Crie peers WireGuard para as RouterBoards. Use <strong>OTP (One Touch Provisioning)</strong> se elegível para injetar as configurações diretamente na MikroTik via SSH, automatizando a implantação.
+                    </p>
+                </div>
+            </div>
 
-				<!-- CARD 2: Estratégia -->
-				<div class="column is-6">
-					<div class="box" style="height: 100%; display: flex; flex-direction: column; border-radius: 10px; border: 1px solid #eef0f3; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-						<h3 class="subtitle is-6 has-text-grey-dark mb-3">
-							<i class="bi-shuffle mr-1"></i> Estratégia de alocação de IP
-						</h3>
-						
-						<div class="control mb-1">
-							<label class="radio mr-4 p-2" style="border: 1px solid #ddd; border-radius: 6px; cursor: pointer; transition: 0.2s; background: #fafafa;">
-								<input type="radio" name="alloc_mode" value="seq" checked>
-								<strong>Sequencial</strong> <span class="has-text-grey is-size-7">(.2, .3, .4…)</span>
-							</label>
-							<label class="radio p-2" style="border: 1px solid #ddd; border-radius: 6px; cursor: pointer; transition: 0.2s; background: #fafafa;">
-								<input type="radio" name="alloc_mode" value="rand">
-								<strong>Aleatório</strong>
-							</label>
-						</div>
-						<p class="help is-size-7 has-text-grey mb-4">
-							Sequencial atribui IPs em ordem crescente. Aleatório escolhe um livre ao acaso. Os peers usarão formato <code>/32</code>.
-						</p>
-						
-						<div class="field mt-auto">
-							<label class="checkbox" style="display: flex; align-items: center; background: #eef6fc; padding: 10px 15px; border-radius: 6px; border: 1px solid #cce3f6; cursor: pointer;">
-								<input type="checkbox" name="atualizar_ip_nas" value="1" checked class="mr-2">
-								<span class="is-size-6">Atualizar campo <code>ip</code> do NAS para o novo IP WG</span>
-							</label>
-							<p class="help mt-1">Nenhum outro <code>Dado do sistema</code> será alterado.</p>
-						</div>
-					</div>
-				</div>
+            <!-- CARD 2: Rede Base e Estratégia de IP -->
+            <div class="column is-4">
+                <div class="box" style="height: 100%; display: flex; flex-direction: column; border-radius: 10px; border: 1px solid #eef0f3; box-shadow: 0 2px 8px rgba(0,0,0,0.02); background: #ffffff;">
+                    <h3 class="subtitle is-6 has-text-grey-dark mb-3 font-weight-bold">
+                        <i class="bi bi-diagram-3 mr-1"></i> Rede WG e Alocação
+                    </h3>
+                    
+                    <div class="is-size-3 has-text-weight-bold has-text-dark mb-1" style="letter-spacing: -1px;">
+                        <?php echo htmlspecialchars($wg_base_cidr); ?>
+                    </div>
+                    <input type="hidden" name="wg_base_cidr" value="<?php echo htmlspecialchars($wg_base_cidr); ?>">
+                    
+                    <div class="mb-4">
+                        <?php if (isset($wg_server_host) && $wg_server_host !== '' && isset($wg_max_peers) && $wg_max_peers > 0): ?>
+                            <span class="tag is-info is-light">Host: <?php echo htmlspecialchars($wg_server_host); ?></span>
+                        <?php elseif (isset($wg_server_host) && $wg_server_host !== ''): ?>
+                            <span class="tag is-info is-light">Host: <?php echo htmlspecialchars($wg_server_host); ?></span>
+                        <?php else: ?>
+                            <span class="tag is-danger is-light"><i class="bi bi-exclamation-triangle mr-1"></i> Configure wg0 primeiro</span>
+                        <?php endif; ?>
+                    </div>
 
-			</div>
+                    <div class="mt-auto">
+                        <p class="is-size-7 has-text-grey mb-2" style="font-weight: 600;">ESTRATÉGIA DE IP (/32)</p>
+                        <div class="control is-flex" style="gap: 10px;">
+                            <label class="radio is-flex-grow-1 m-0 p-2 has-text-centered" style="border: 1px solid #ddd; border-radius: 6px; cursor: pointer; transition: 0.2s; background: #fafafa;">
+                                <input type="radio" name="alloc_mode" value="seq" checked>
+                                <br><strong class="is-size-7">Sequencial</strong>
+                            </label>
+                            <label class="radio is-flex-grow-1 m-0 p-2 has-text-centered" style="border: 1px solid #ddd; border-radius: 6px; cursor: pointer; transition: 0.2s; background: #fafafa;">
+                                <input type="radio" name="alloc_mode" value="rand">
+                                <br><strong class="is-size-7">Aleatório</strong>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-			<!-- TABELA ORIGINAL - Intocada -->
-			<div class="table-container" style="border-radius: 8px; border: 1px solid #eee; overflow: hidden; margin-bottom: 0;">
-				<table class="table is-striped is-hoverable is-fullwidth align-middle" style="margin-bottom: 0;">
-					<thead style="background-color: #f8f9fa;">
-						<tr>
-							<th style="width:1%; text-align: center;">
-								<input type="checkbox" id="check_all_ramal" onclick="toggleAllRamais(this)">
-							</th>
-							<th>ID NAS</th>
-							<th>Ramal</th>
-							<th>Host/IP</th>
-							<th>Bairro</th>
-							<th>Status WG</th>
-						</tr>
-					</thead>
-					<tbody>
-					<?php if (!$ramais_list): ?>
-						<tr>
-							<td colspan="6" class="has-text-centered p-5 has-text-grey">
-								<i class="bi-inbox" style="font-size: 2rem;"></i><br>
-								Nenhum ramal (NAS) encontrado.
+            <!-- CARD 3: O Dado Mais Importante (Integração de Rota) -->
+            <div class="column is-4">
+                <div class="box" style="height: 100%; display: flex; flex-direction: column; border-radius: 10px; border: 2px solid #e0f2fe; background: #f8fafc; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.05);">
+                    <h3 class="subtitle is-6 has-text-link-dark mb-3" style="font-weight: 700;">
+                        <i class="bi bi-arrow-left-right mr-1"></i> Ação no MK-Auth
+                    </h3>
+                    
+                    <div class="field mt-auto">
+                        <!-- RADIUS 1: Instalação Limpa -->
+                        <label class="radio" style="display: block; background: #ffffff; padding: 12px 14px; border-radius: 8px; border: 1px solid #bae6fd; cursor: pointer; margin-bottom: 10px; margin-left: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                            <div class="is-flex is-align-items-center mb-1">
+                                <input type="radio" name="atualizar_ip_nas" value="1" checked class="mr-2" style="transform: scale(1.2);">
+                                <strong class="has-text-dark" style="font-size: 0.95rem;">Instalação Direta (Novo)</strong>
+                            </div>
+                            <p class="has-text-grey" style="font-size: 0.75rem; padding-left: 26px; line-height: 1.4;">
+                                Atualiza o IP da RB no sistema imediatamente. Ideal para instalações limpas sem VPN (PPTP/SSTP) prévia.
+                            </p>
+                        </label>
+
+                        <!-- RADIUS 2: Migração Segura -->
+                        <label class="radio" style="display: block; background: #ffffff; padding: 12px 14px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; margin-left: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                            <div class="is-flex is-align-items-center mb-1">
+                                <input type="radio" name="atualizar_ip_nas" value="0" class="mr-2" style="transform: scale(1.2);">
+                                <strong class="has-text-dark" style="font-size: 0.95rem;">Migração de Protocolo</strong>
+                            </div>
+                            <p class="has-text-grey" style="font-size: 0.75rem; padding-left: 26px; line-height: 1.4;">
+                                Mantém o IP de cadastro intacto. Suba o túnel WG em paralelo com segurança e depois use o botão <strong>"Efetivar Rota"</strong> na aba Peers para virar a chave!
+                            </p>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- A TABELA DE RAMAIS MESTRA -->
+        <div class="table-container">
+            <table class="table is-fullwidth is-hoverable is-striped" style="background: white; border-radius: 8px; overflow: hidden; font-size: 0.9rem;">
+                <thead style="background-color: #f1f5f9;">
+                    <tr>
+                        <th width="3%" class="has-text-centered"><input type="checkbox" onchange="toggleAllRamais(this)"></th>
+                        <th width="5%">ID</th>
+                        <th width="15%">Nome do Ramal</th>
+                        <th width="12%">IP do MK</th>
+                        <!-- COLUNA INTELIGENTE -->
+                        <th width="14%" class="has-text-centered" title="Status de operação do Túnel">Tunnel Wireguard</th>
+                        <th width="14%">IP Fallback (Acesso)</th>
+                        <th width="8%" class="has-text-centered">Porta SSH</th>
+                        <th width="12%">Senha mkauth</th>
+                        <th width="17%" class="has-text-centered">Status OTP (SSH)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (empty($ramais_list)): ?>
+                        <tr><td colspan="9" class="has-text-centered py-5">Nenhum NAS cadastrado no MK-AUTH.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($ramais_list as $row): 
+                            
+                            $ja_provisionado = !empty($row['wg_id']);
+                            $has_ip    = !empty($row['ipfall']);
+                            $has_pass  = !empty($row['senha']);
+                            $porta_ssh = !empty($row['portassh']) ? $row['portassh'] : '22';
+                            
+                            $otp_pronto = ($has_ip && $has_pass);
+
+                            $ip_wg_limpo = $ja_provisionado ? explode('/', $row['wg_ip'])[0] : '';
+                            $ip_mk_atual = trim($row['nasname']);
+                            
+                            // Lógica inteligente dos cards
+                            $ip_espelhado_ok = ($ja_provisionado && $ip_wg_limpo === $ip_mk_atual);
+                            $is_disabled     = ($ja_provisionado && isset($row['wg_status']) && $row['wg_status'] === 'disabled');
+                        ?>
+                        <tr>
+                            <!-- 1. CHECKBOX -->
+                            <td class="is-vcentered has-text-centered">
+								<input type="checkbox" class="ramal-checkbox" name="ramal_ids[]" value="<?= $row['id_nas'] ?>" data-otp="<?= $otp_pronto ? '1' : '0' ?>" data-prov="<?= $ja_provisionado ? '1' : '0' ?>">
+                            </td>
+                            
+                            <!-- 2. ID -->
+                            <td class="is-vcentered has-text-weight-bold"><?= $row['id_nas'] ?></td>
+                            
+                            <!-- 3. NOME DO RAMAL -->
+                            <td class="is-vcentered">
+                                <strong><?= htmlspecialchars($row['shortname']) ?></strong>
+                            </td>
+
+                            <!-- 4. IP DO SISTEMA (MK-AUTH) -->
+                            <td class="is-vcentered">
+                                <span class="tag is-info is-light has-text-weight-bold"><?= htmlspecialchars($ip_mk_atual) ?></span>
+                            </td>
+
+                            <!-- 5. TUNNEL WIREGUARD (NOVA LÓGICA DE STATUS) -->
+                            <td class="is-vcentered has-text-centered">
+                                <?php if (!$ja_provisionado): ?>
+                                    <!-- Caso 1: Ramal virgem sem peer -->
+                                    <span class="tag has-text-grey-dark" style="background-color: #e2e8f0; font-weight: 600;">Não configurado</span>
+                                
+                                <?php elseif ($is_disabled): ?>
+                                    <!-- Caso 4: Peer existe mas está Disabled -->
+                                    <span class="tag is-danger" style="font-weight: 600;"><i class="bi bi-x-circle mr-1"></i> Disabled</span>
+                                
+                                <?php elseif ($ip_espelhado_ok): ?>
+                                    <!-- Caso 2: IP WG = IP MK (Oficial) -->
+                                    <span class="tag is-success" style="font-weight: 600;"><i class="bi bi-check-circle mr-1"></i> Oficial</span>
+                                
+                                <?php else: ?>
+                                    <!-- Caso 3: IP WG != IP MK (Em Paralelo) -->
+                                    <span class="tag is-warning" style="font-weight: 600; background-color: #fde047; color: #854d0e;"><i class="bi bi-exclamation-circle mr-1"></i> Em paralelo</span>
+                                <?php endif; ?>
+                            </td>
+                            
+                            <!-- 6. IP FALLBACK -->
+                            <td class="is-vcentered">
+                                <?php if($has_ip): ?>
+                                    <span class="has-text-weight-bold" style="color: #363636;"><?= htmlspecialchars($row['ipfall']) ?></span>
+                                <?php else: ?>
+                                    <span class="tag is-danger is-light"><i class="bi bi-exclamation-circle mr-1"></i> Faltando</span>
+                                <?php endif; ?>
+                            </td>
+
+                            <!-- 7. PORTA SSH -->
+                            <td class="is-vcentered has-text-centered">
+                                <span class="has-text-grey"><?= htmlspecialchars($porta_ssh) ?></span>
+                            </td>
+
+                            <!-- 8. SENHA MKAUTH -->
+                            <td class="is-vcentered">
+                                <?php if($has_pass): ?>
+                                    <div class="is-flex is-align-items-center">
+                                        <span id="senha_txt_<?= $row['id_nas'] ?>" class="has-text-weight-bold is-family-monospace mr-2" data-senha="<?= htmlspecialchars($row['senha']) ?>" style="font-size: 1.1rem; color: #363636;">••••••</span>
+                                        <a class="has-text-grey" onclick="toggleSenhaSpan('senha_txt_<?= $row['id_nas'] ?>', this)" style="cursor: pointer;" title="Ver Senha"><i class="bi bi-eye"></i></a>
+                                    </div>
+                                <?php else: ?>
+                                    <span class="tag is-danger is-light"><i class="bi bi-exclamation-circle mr-1"></i> Faltando</span>
+                                <?php endif; ?>
+                            </td>
+
+							<!-- 9. STATUS OTP (SSH) -->
+							<td class="is-vcentered has-text-centered cell-ssh-status" data-id="<?= $row['id_nas'] ?>">
+								<?php if ($otp_pronto): ?>
+									<button type="button" class="button is-small is-light is-info" onclick="testarConexaoSsh(this, <?= $row['id_nas'] ?>)" style="font-weight: 600; transition: all 0.2s;">
+										<span class="icon is-small"><i class="bi bi-arrow-repeat"></i></span>
+										<span>Validar Acesso</span>
+									</button>
+								<?php else: ?>
+									<span class="tag is-danger is-light" title="Faltam credenciais (IP ou Senha)"><i class="bi bi-x-circle mr-1"></i> Faltam Dados</span>
+								<?php endif; ?>
 							</td>
 						</tr>
-					<?php else: ?>
-						<?php foreach ($ramais_list as $r): ?>
-							<?php
-							$ja = !empty($r['wg_id']);
-							?>
-							<tr>
-								<td class="has-text-centered">
-									<?php if (!$ja): ?>
-										<input type="checkbox"
-											   class="ramal-checkbox"
-											   name="ramal_ids[]"
-											   value="<?php echo (int)$r['id_nas']; ?>">
-									<?php endif; ?>
-								</td>
-								<td><strong><?php echo (int)$r['id_nas']; ?></strong></td>
-								<td><?php echo htmlspecialchars($r['shortname']); ?></td>
-								<td style="font-family: monospace;"><?php echo htmlspecialchars($r['nasname']); ?></td>
-								<td><?php echo htmlspecialchars($r['bairro']); ?></td>
-								<td>
-									<?php if ($ja): ?>
-										<span class="tag is-success"><i class="bi-check-circle-fill mr-1"></i> Provisionado (<?php echo htmlspecialchars($r['wg_peer_name']); ?>)</span>
-									<?php else: ?>
-										<span class="tag is-light" style="border: 1px solid #ccc;"><i class="bi-dash-circle mr-1"></i> Sem peer</span>
-									<?php endif; ?>
-								</td>
-							</tr>
-						<?php endforeach; ?>
-					<?php endif; ?>
-					</tbody>
-				</table>
-			</div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
 
-			<nav class="level is-mobile mt-4 pt-4" style="border-top: 1px solid #eee;">
-				<div class="level-left">
-					<div class="level-item">
-						<button type="button" class="button is-success is-medium" title="Criar peers WireGuard para os ramais selecionados" onclick="return submitProvisionarRamais();" style="border-radius: 8px;">
-							<span class="icon"><i class="bi-plus-square-fill"></i></span>
-							<span>Provisionar Selecionados</span>
-						</button>
-					</div>
-				</div>
-			</nav>
-		</form>
-	</div>
+		<div class="mt-4">
+			<div class="field is-grouped">
+				<p class="control">
+					<button type="button" class="button is-success" onclick="submitProvisionarRamais()" style="font-weight: 600;">
+						<span class="icon is-small"><i class="bi bi-plus-lg"></i></span>
+						<span>Provisionar Rb</span>
+					</button>
+				</p>
+				<p class="control">
+					<button type="button" class="button is-link" onclick="submitOtpEmMassa()" style="font-weight: 600;" title="Conectar via SSH e configurar a VPN">
+						<span class="icon is-small"><i class="bi bi-magic"></i></span>
+						<span>OTP (SSH)</span>
+					</button>
+				</p>
+			</div>
+			
+			<div class="is-size-7 has-text-grey mt-2">
+				<i class="bi bi-info-circle"></i> <strong>Provisionar Rb:</strong> Cria o peer WireGuard VPN para RouterBoard no servidor MK-Auth. | <strong>OTP:</strong> Conecta via SSH e aplica as configurações diretamente nas RouterBoards.
+			</div>
+		</div>
+    </form>
+</div>
 
     <!-- ========================================
          ABA: CRIAR PEER (VPS / INFRA)
@@ -2636,6 +2435,28 @@ if (!isset($snapshots)) {
         </section>
     </div>
 </div>
+<!-- MODAL OTP PROGRESSO -->
+<div id="modal_otp_progress" class="modal">
+  <div class="modal-background" style="background-color: rgba(15, 23, 42, 0.85);"></div>
+  <div class="modal-card" style="border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+    <header class="modal-card-head" style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 1.25rem;">
+      <p class="modal-card-title" style="font-weight: 800; color: #0f172a; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
+        <span class="icon" style="color: #0ea5e9;"><i class="bi bi-magic"></i></span>
+        Auto OTP (One Touch Provisioning)
+      </p>
+    </header>
+    <section class="modal-card-body" style="background-color: #ffffff; padding: 1.5rem;">
+      <div id="otp_log_container" style="background: #0f172a; color: #f8fafc; padding: 1.25rem; border-radius: 12px; font-family: 'Courier New', Courier, monospace; font-size: 0.9rem; line-height: 1.6; height: 350px; overflow-y: auto; box-shadow: inset 0 4px 10px rgba(0,0,0,0.5);">
+          <!-- Logs aparecerão aqui via JS -->
+      </div>
+    </section>
+    <footer class="modal-card-foot" style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 1.25rem; justify-content: flex-end;">
+      <button id="btn_fechar_otp" class="button is-info" disabled style="border-radius: 10px; font-weight: 700; padding: 0.5rem 1.5rem; transition: all 0.3s ease;">
+        Aguarde o Processo...
+      </button>
+    </footer>
+  </div>
+</div>
 
 <?php include('../../baixo.php'); ?>
 <!-- DADOS EXPORTADOS PARA O WG_ADDON.JS -->
@@ -2647,7 +2468,7 @@ if (!isset($snapshots)) {
         seqIp: "<?php echo isset($sugestao_ip_seq) ? $sugestao_ip_seq : ''; ?>"
     };
 </script>
-
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../../menu.js.hhvm"></script>
 <script src="wg_addon.js"></script>
 </body>

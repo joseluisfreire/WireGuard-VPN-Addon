@@ -285,3 +285,22 @@ h1, .title, .subtitle {
 .notification .delete:hover {
     background-color: rgba(0, 0, 0, 0.2) !important;
 }
+/* Batimento Cardíaco Suave para Túneis Online */
+@keyframes heartbeat {
+    0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.8); }
+    70% { box-shadow: 0 0 0 8px rgba(74, 222, 128, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+.status-online-glow {
+    animation: heartbeat 2s infinite;
+}
+/* Pulso extra para o ícone do Handshake */
+@keyframes icon-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+.icon-online {
+    animation: icon-pulse 1.5s infinite;
+    color: #22c55e; /* Verde vivo */
+}

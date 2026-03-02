@@ -349,3 +349,368 @@ function confirmImportBackup() {
         + 'Continuar?'
     );
 }
+// ==============================================================
+// FUNÇÃO PARA MOSTRAR/OCULTAR SENHA (VERSÃO TEXTO PURO)
+// ==============================================================
+function toggleSenhaSpan(spanId, btnElement) {
+    const span = document.getElementById(spanId);
+    const icone = btnElement.querySelector('i');
+    
+    if (!span || !icone) return;
+
+    const senhaReal = span.getAttribute('data-senha');
+
+    // Se estiver aparecendo bolinhas, mostra a senha real
+    if (span.innerText === '••••••') {
+        span.innerText = senhaReal;
+        span.style.fontSize = '0.9rem'; // Ajusta fonte pra caber bem
+        icone.classList.remove('bi-eye');
+        icone.classList.add('bi-eye-slash'); // Troca pro olho cortado
+        
+        // Timer de segurança: Esconde a senha de volta depois de 10 segundos
+        setTimeout(() => {
+            if (span.innerText === senhaReal) {
+                span.innerText = '••••••';
+                span.style.fontSize = '1.1rem';
+                icone.classList.remove('bi-eye-slash');
+                icone.classList.add('bi-eye');
+            }
+        }, 10000); 
+
+    } else {
+        // Se estiver aparecendo o texto, volta pras bolinhas
+        span.innerText = '••••••';
+        span.style.fontSize = '1.1rem';
+        icone.classList.remove('bi-eye-slash');
+        icone.classList.add('bi-eye');
+    }
+}
+// ==============================================================
+// FUNÇÕES DA ABA PROVISIONAR (Massa)
+// ==============================================================
+
+// Botão 1: Provisionar no Servidor (Trava dura em duplicados)
+function submitProvisionarRamais() {
+    var form = document.getElementById('form_provisionar');
+    var selecionados = form.querySelectorAll('.ramal-checkbox:checked');
+    
+    if (selecionados.length === 0) {
+        alert('Nenhum ramal selecionado.');
+        return false;
+    }
+
+    // Conta se selecionou alguém que já tem túnel
+    var jaProvisionados = 0;
+    selecionados.forEach(function(cb) {
+        if (cb.getAttribute('data-prov') === '1') jaProvisionados++;
+    });
+
+    // TRAVA DURA: Não deixa o cara prosseguir se houverem peers repetidos
+    if (jaProvisionados > 0) {
+        alert('❌ ERRO: Você selecionou ramal(is) que JÁ ESTÃO PROVISIONADOS no servidor.\n\nDesmarque os ramais que já possuem IP do WireGuard para poder criar os novos.');
+        return false; // Trava a função. Não submete o formulário.
+    }
+
+    // Se passou pela trava, pede a confirmação padrão
+    if (!confirm('Criar peers WireGuard para os ramais selecionados no SERVIDOR?')) {
+        return false;
+    }
+
+    form.querySelector('input[name="acao"]').value = 'provisionar_ramais';
+    form.submit();
+    return false;
+}
+
+// Botão 2: A Varinha Mágica (Auto OTP - One Touch Provisioning)
+    function submitOtpEmMassa() {
+        var form = document.getElementById('form_provisionar');
+        var selecionados = form.querySelectorAll('.ramal-checkbox:checked');
+        
+        if (selecionados.length === 0) {
+            alert('Selecione ao menos um ramal para executar o OTP.');
+            return false;
+        }
+    
+        var naoElegiveis = 0;
+        var rbsValidas = [];
+        
+        selecionados.forEach(function(cb) {
+            if (cb.getAttribute('data-otp') === '0') {
+                naoElegiveis++;
+            } else {
+                // Tenta achar o nome na tabela para ficar bonito no log
+                let row = cb.closest('tr');
+                let tdNome = row ? row.querySelector('td:nth-child(3)') : null;
+                let nomeRb = tdNome ? tdNome.innerText.trim() : 'NAS ID ' + cb.value;
+                rbsValidas.push({ id_nas: cb.value, nome: nomeRb });
+            }
+        });
+    
+        if (naoElegiveis > 0) {
+            alert('❌ ERRO: Você selecionou ' + naoElegiveis + ' ramal(is) que NÃO SÃO ELEGÍVEIS para o OTP (Carinha Triste).\n\nEles estão sem IP Fallback ou Senha no cadastro. Preencha esses dados no MK-Auth antes de tentar a configuração automática via SSH.');
+            return false;
+        }
+    
+        if (!confirm('✨ Executar o Auto OTP (One Touch Provisioning) nas RouterBoards selecionadas?\n\nO sistema irá se conectar via SSH a cada RB para aplicar as configurações do WireGuard automaticamente.')) {
+            return false;
+        }
+    
+        abrirModalOtp(rbsValidas);
+        return false;
+    }
+
+    // A Mágica do AJAX disparando em fila Indiana
+    async function abrirModalOtp(rbs) {
+        const modal = document.getElementById('modal_otp_progress');
+        const container = document.getElementById('otp_log_container');
+        const btnFechar = document.getElementById('btn_fechar_otp');
+        
+        if(!modal) return alert("HTML do modal não encontrado!");
+        
+        modal.classList.add('is-active');
+        container.innerHTML = `<div style="color: #38bdf8; font-weight: bold;">⚡ Iniciando fila de injeção em ${rbs.length} RouterBoard(s)...</div><br>`;
+        btnFechar.disabled = true;
+        btnFechar.innerText = "Aguarde o Processo...";
+        
+        for(let i = 0; i < rbs.length; i++) {
+            let rb = rbs[i];
+            
+            let logLine = document.createElement('div');
+            logLine.innerHTML = `<span style="color:#94a3b8;">[${i+1}/${rbs.length}]</span> Processando <b>${rb.nome}</b>... <i class="bi bi-hourglass-split" style="animation: spin 2s linear infinite; color: #facc15;"></i>`;
+            container.appendChild(logLine);
+            container.scrollTop = container.scrollHeight;
+            
+            let formData = new FormData();
+            formData.append('acao', 'executar_otp_unitario');
+            formData.append('id_nas', rb.id_nas);
+            
+            try {
+                let res = await fetch(window.location.href, { method: 'POST', body: formData });
+                let data = await res.json();
+                
+                if(data.status === 'ok') {
+                    logLine.innerHTML = `<span style="color:#4ade80;">[${i+1}/${rbs.length}] ✅ Sucesso em <b>${rb.nome}</b>!</span> <span style="font-size: 0.75rem; color:#94a3b8;">(Injetado via ${data.metodo})</span>`;
+                } else {
+                    logLine.innerHTML = `<span style="color:#f87171;">[${i+1}/${rbs.length}] ❌ Falha em <b>${rb.nome}</b>: ${data.msg}</span>`;
+                    console.warn("Log SSH Falha:", data.debug);
+                }
+            } catch(e) {
+                logLine.innerHTML = `<span style="color:#f87171;">[${i+1}/${rbs.length}] ❌ Erro Crítico: Falha na requisição ao servidor.</span>`;
+            }
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        container.innerHTML += `<br><div style="color: #38bdf8; font-weight: bold;">✨ Processo Finalizado!</div>`;
+        btnFechar.disabled = false;
+        btnFechar.innerText = "Concluir e Atualizar Tela";
+        
+        btnFechar.onclick = function() { window.location.reload(); };
+    }
+    
+    function fecharModalOtp() {
+        document.getElementById('modal_otp_progress').classList.remove('is-active');
+    }
+// Função Mágica que chama o backend PHP para validar ssh da MikroTik (Monstro 2.0)
+function testarConexaoSsh(btnElement, id_nas, event = null) {
+    // Impede que o botão tente enviar um formulário e recarregar a página no 1º clique
+    if (event) {
+        event.preventDefault();
+    }
+
+    // Busca a célula de status
+    let cell = btnElement.closest('.cell-ssh-status');
+    
+    // Trava de segurança caso o HTML mude e ele não ache a célula
+    if (!cell) {
+        console.error("Erro: Não achei a classe .cell-ssh-status perto do botão clicado!");
+        return;
+    }
+
+    // Muda o visual do botão para "Testando..." e desativa o botão para evitar duplos cliques
+    btnElement.disabled = true;
+    cell.innerHTML = `
+        <span class="tag is-warning is-light" style="font-weight: 600;">
+            <i class="bi bi-hourglass-split mr-1" style="animation: spin 2s linear infinite;"></i> Testando...
+        </span>`;
+
+    // Monta o pacote de dados
+    let formData = new FormData();
+    formData.append('acao', 'testar_ssh_otp');
+    formData.append('id_nas', id_nas);
+
+    // Dispara a requisição em background
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.status === 'ok') {
+            // Sucesso Total! RB respondeu. Informamos IP e Método!
+            let icone_metodo = data.metodo === 'Chave SSH' ? '<i class="bi bi-key-fill mr-1"></i>' : '<i class="bi bi-asterisk mr-1"></i>';
+            cell.innerHTML = `
+                <span class="tag" style="background-color: #4ade80; color: #000; border: 1px solid #22c55e; font-weight: 600;" title="Logado como '${data.user}' no IP ${data.ip} usando ${data.metodo}">
+                    ${icone_metodo} Online (${data.metodo})
+                </span>`;
+        } else {
+            // AQUI ESTÁ A MÁGICA: Joga o log bruto do PHP no console do navegador!
+            console.warn("Motivo da falha SSH (Log do PHP):", data.debug);
+            
+            // Falhou
+            cell.innerHTML = `
+                <span class="tag is-danger is-light" style="font-weight: 600; border: 1px solid #f87171;" title="${data.msg}">
+                    <i class="bi bi-x-circle-fill mr-1"></i> Falhou
+                </span>
+                <button class="button is-small is-ghost px-1 py-0" style="height: auto; text-decoration: none;" onclick="testarConexaoSsh(this, ${id_nas}, event)" title="Tentar Novamente">
+                    <i class="bi bi-arrow-clockwise text-grey"></i>
+                </button>`;
+        }
+    })
+    .catch(error => {
+        console.error("Erro de Rede ou JS:", error);
+        cell.innerHTML = `
+            <span class="tag is-danger" style="font-weight: 600;">Erro JS</span>
+            <button class="button is-small is-ghost px-1 py-0" style="height: auto; text-decoration: none;" onclick="testarConexaoSsh(this, ${id_nas}, event)" title="Tentar Novamente">
+                <i class="bi bi-arrow-clockwise text-grey"></i>
+            </button>`;
+    });
+}
+// ==============================================================
+// RADAR LIVE STATS - O "Efeito WinBox" (Atualiza RX/TX ao vivo)
+// ==============================================================
+
+// Função pra converter os números crus pro formato bonito no JS
+function formatarBytesJS(bytes) {
+    if (bytes <= 0) return '<span class="has-text-grey-light">0 B</span>';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Inicia o Radar a cada 5 segundos
+setInterval(function() {
+    let formData = new FormData();
+    formData.append('acao', 'get_live_stats');
+
+    // Bate silenciosamente no nosso backend
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'ok') {
+            // Varre cada linha da tabela
+            document.querySelectorAll('.wg-peer-row').forEach(row => {
+                let pubKey = row.getAttribute('data-pubkey');
+                
+                if(data.peers[pubKey]) {
+                    let liveData = data.peers[pubKey];
+                    
+                    let cellRx = row.querySelector('.wg-rx-cell');
+                    let cellTx = row.querySelector('.wg-tx-cell');
+					let btnStatus = row.querySelector('.wg-btn-status'); 
+					let iconHandshake = row.querySelector('.wg-icon-handshake'); 
+                    
+                    let rxAntigo = parseInt(cellRx.getAttribute('data-bytes')) || 0;
+                    let rxNovo = parseInt(liveData.rx);
+                    let txNovo = parseInt(liveData.tx);
+                    
+                    // 1. Atualiza os números girando ao vivo igual WinBox
+                    cellRx.setAttribute('data-bytes', rxNovo);
+                    cellRx.querySelector('.texto-bytes').innerHTML = formatarBytesJS(rxNovo);
+                    
+                    cellTx.setAttribute('data-bytes', txNovo);
+                    cellTx.querySelector('.texto-bytes').innerHTML = formatarBytesJS(txNovo);
+                    
+                    // 2. A MÁGICA DA VIDA: Se RX moveu, a filial tá pingando AGORA!
+                    if(rxNovo > rxAntigo) {
+                        btnStatus.classList.add('status-online-glow');
+                        if(iconHandshake) iconHandshake.classList.add('icon-online');
+                    } else {
+                        // Passou 5 segundos e o RX não mudou? O túnel parou. Apaga as luzes.
+                        btnStatus.classList.remove('status-online-glow');
+                        if(iconHandshake) iconHandshake.classList.remove('icon-online');
+                    }
+                }
+            });
+        }
+    })
+    .catch(err => console.log("Radar Live em repouso..."));
+}, 5000); // 5000 ms = 5 Segundos
+/**
+ * Revela os botões de funções nativas do RouterOS após o usuário aceitar o risco
+ * @param {number} id_peer ID da linha do peer 
+ */
+function revelarPerigo(id_peer) {
+    const titulo = "⚠️ ALERTA: RECURSO NATIVO FALHO!";
+    
+    // TEXTO DO SWEETALERT2 (Com links em HTML)
+    const textoHTML = `
+        <div style="text-align: left; font-size: 14px; color: #475569; line-height: 1.5;">
+            <p>Os comandos nativos do ROS7.x WG Import (WinBox) e config-string são <b>limitados!</b></p>
+            
+            <p style="color: #dc2626; font-weight: 600; background: #fee2e2; padding: 10px; border-radius: 6px; margin: 15px 0;">
+                Eles <b>NÃO</b> possuem lógica de <b>idempotência</b> e estão sujeitos a duplicar interfaces e endereços IP se rodados mais de uma vez.
+            </p>
+            
+            <p>Para atestar, veja os diversos relatos de bugs e crashes no <b>Fórum Oficial da MikroTik</b>:</p>
+            <ul style="margin-left: 20px; margin-bottom: 15px; font-size: 13px;">
+                <li><a href="https://forum.mikrotik.com/viewtopic.php?t=207479" target="_blank" style="color: #2563eb;">Relato 1: RouterOS sofrendo Crash (Reboot) ao importar configuração do Wireguard.</a></li>
+                <li><a href="https://forum.mikrotik.com/t/wg-import-function-odd-behaviour/181481" target="_blank" style="color: #2563eb;">Relato 2: Comportamento bizarro da função “WG Import” ("odd behaviour")</a></li>
+            </ul>
+            
+            <hr style="border-top: 1px solid #cbd5e1; margin: 15px 0;">
+            
+            <p><b>Por que o método sugerido pelo ADDON é melhor? 😎</b></p>
+            <p>O método <b>.RSC</b> é inteligente, idempotente e faz uma varredura prévia no ambiente, garantindo a <b>não duplicidade</b>.</p>
+            
+            <p style="margin-top: 15px; font-weight: bold; color: #1e293b;">Deseja liberar as opções de importação nativas por SUA CONTA E RISCO? (NÃO RECOMENDADO)</p>
+        </div>
+    `;
+
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: titulo,
+            html: textoHTML,
+            icon: 'warning',
+            iconColor: '#f59e0b',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#3b82f6',
+            confirmButtonText: 'Sim, assumo o risco!',
+            cancelButtonText: 'Melhor não (Recomendado)',
+            width: '650px'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Esconde O BOTÃO EXATO amarelo pelo ID
+                const btnNativas = document.getElementById('btn_nativas_' + id_peer);
+                if(btnNativas) btnNativas.style.display = 'none';
+                
+                // Mostra os botões vermelhos
+                document.getElementById('botoes_perigo_' + id_peer).style.display = 'inline-block';
+            }
+        });
+    } else {
+        // TEXTO DO ALERTA NATIVO (Texto Puro)
+        let msg = "⚠️ ALERTA: Os comandos nativos do ROS7.x WG Import (WinBox) e config-string são limitados!\n\n";
+        msg += "Eles NÃO possuem lógica de IDEMPOTÊNCIA e estão sujeitos a duplicar interfaces e endereços IP se rodado mais de uma vez.\n\n";
+        
+        msg += "Veja os relatos de bugs e crashes no Fórum Oficial:\n";
+        msg += "1. forum.mikrotik.com/viewtopic.php?t=207479\n";
+        msg += "2. forum.mikrotik.com/t/wg-import-function-odd-behaviour/181481\n\n";
+        
+        msg += "O método .RSC é inteligente, idempotente, faz uma varredura prévia no ambiente, garantindo a não duplicidade.\n\n";
+        msg += "Deseja liberar as opções de importação nativas por SUA CONTA E RISCO? (NÃO RECOMENDADO)";
+        
+        if (confirm(msg)) {
+            // Esconde O BOTÃO EXATO amarelo pelo ID
+            const btnNativas = document.getElementById('btn_nativas_' + id_peer);
+            if(btnNativas) btnNativas.style.display = 'none';
+            
+            // Mostra os botões vermelhos
+            document.getElementById('botoes_perigo_' + id_peer).style.display = 'inline-block';
+        }
+    }
+}

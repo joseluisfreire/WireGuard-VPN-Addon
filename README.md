@@ -13,7 +13,6 @@
 
 ---
 
-**Português (BR)** · [English](#english)
 
 </div>
 

@@ -54,14 +54,14 @@ Apesar do WireGuard estar nativo tanto no kernel Linux quanto no RouterOS, o **M
 ## 🏗️ Arquitetura
 
 ```text
-┌──────────────────────────────────────────────────────────┐
-│                  MK-AUTH (Painel Web)                    │
-│                                                          │
-│  addon_wireguard.js ──► /addons/wireguard/index.php      │
-│                              │                           │
-│                     wg_actions_post.php                  │
-│                              │                           │
-└──────────────────────────────┼───────────────────────────┘
+┌──────────────────────────────────────────────────────────┐        ┌───────────────────────┐
+│                  MK-AUTH (Painel Web)                    │        │   MySQL (mkradius)    │
+│                                                          │        │                       │
+│  addon_wireguard.js ──► /addons/wireguard/index.php      │  SQL   │ Tabelas:              │
+│                              │                           ├───────►│ • wg_ramais (peers)   │
+│                     wg_actions_post.php                  │◄───────┤ • nas (routers)       │
+│                              │                           │        │                       │
+└──────────────────────────────┼───────────────────────────┘        └───────────────────────┘
                                │
                         Unix Socket
                     /run/wgmkauth.sock
@@ -98,6 +98,27 @@ Apesar do WireGuard estar nativo tanto no kernel Linux quanto no RouterOS, o **M
 ```bash
 curl -fsSL https://raw.githubusercontent.com/joseluisfreire/WireGuard-VPN-Addon/main/bootstrap.sh | bash
 ```
+
+## ⚡ Instalação e Gerenciamento
+O Addon possui um instalador automatizado (bootstrap.sh) que configura tudo: dependências, diretórios, permissões, painel PHP e o serviço em background. Execute os comandos abaixo no terminal do seu servidor MK-AUTH logado como root.
+
+1. Instalar (Primeira vez)
+```bash
+curl -fsSL https://raw.githubusercontent.com/joseluisfreire/WireGuard-VPN-Addon/main/bootstrap.sh | bash
+```
+
+2. Atualizar (Update)
+Lançamos uma versão nova do painel ou do Daemon? Basta rodar o comando de atualização. Seus clientes e chaves serão preservados.
+```bash
+curl -fsSL https://raw.githubusercontent.com/joseluisfreire/WireGuard-VPN-Addon/main/bootstrap.sh | bash -s -- --update
+```
+
+3. Desinstalar (Remover Addon)
+Caso precise remover o addon do MK-AUTH. Durante o processo, ele perguntará se você quer fazer um Purge (apagar todos os clientes e tabelas do banco) ou manter por segurança.
+```bash
+curl -fsSL https://raw.githubusercontent.com/joseluisfreire/WireGuard-VPN-Addon/main/bootstrap.sh | bash -s -- --uninstall
+```
+
 ⚠️ Requisitos: MK-AUTH 25.05+ · Kernel com suporte WireGuard (5.6+ ou XanMod 6.12)
 
 O que o instalador faz:

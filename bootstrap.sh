@@ -45,15 +45,19 @@ command -v curl > /dev/null 2>&1 || fatal "curl não encontrado. Instale: apt in
 # ── Constantes e Versões ──────────────────────────────────────────────
 GITHUB_BASE="https://github.com/joseluisfreire"
 
-WG_TOOLS_REPO="wireguard-tools-static"
-WG_TOOLS_TAG="v1.0.20250521"
+WG_TOOLS_REPO="wireguard-tools"
+# Busca a versão mais recente na API do GitHub (Update Automático real)
+WG_TOOLS_TAG=$(curl -s "https://api.github.com/repos/${GITHUB_BASE##*/}/${WG_TOOLS_REPO}/releases/latest" | grep '"tag_name":' | cut -d '"' -f 4 || true)
+if [[ -z "$WG_TOOLS_TAG" ]]; then
+    WG_TOOLS_TAG="v1.0.20260223" # Fallback de segurança se a API falhar
+fi
 WG_TOOLS_URL="${GITHUB_BASE}/${WG_TOOLS_REPO}/releases/download/${WG_TOOLS_TAG}"
 
 WG_DAEMON_REPO="wg-mkauthd"
 # Busca a versão mais recente na API do GitHub (Update Automático real)
 WG_DAEMON_TAG=$(curl -s "https://api.github.com/repos/${GITHUB_BASE##*/}/${WG_DAEMON_REPO}/releases/latest" | grep '"tag_name":' | cut -d '"' -f 4 || true)
 if [[ -z "$WG_DAEMON_TAG" ]]; then
-    WG_DAEMON_TAG="v1.0.3" # Fallback se o GitHub falhar
+    WG_DAEMON_TAG="v1.0.3" # Fallback se segurança se a API do GitHub falhar
 fi
 WG_DAEMON_URL="${GITHUB_BASE}/${WG_DAEMON_REPO}/releases/download/${WG_DAEMON_TAG}"
 

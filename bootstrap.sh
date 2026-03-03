@@ -237,6 +237,7 @@ fi
 # ── Arquivos do diretório wireguard/ ─────────────────────────────────
 if [[ -d "${ADDON_SRC}/wireguard" ]]; then
     cp -rf "${ADDON_SRC}/wireguard/"* "$ADDON_DIR/"
+    ln -sf /opt/mk-auth/include/addons.inc.hhvm "$ADDON_DIR/addons.class.php"
     chown -R www-data:www-data "$ADDON_DIR"
     find "$ADDON_DIR" -type f -exec chmod 644 {} \;
     chmod 755 "$ADDON_DIR"

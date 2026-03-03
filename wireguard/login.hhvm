@@ -1,0 +1,11 @@
+<?php
+// Limpa qualquer buffer para evitar erro de "Headers already sent"
+if (ob_get_level()) {
+    ob_end_clean();
+}
+
+// Faz o redirecionamento imediato para o login raiz do MK-AUTH
+header("Location: /admin/login.hhvm");
+exit;
+?>
+

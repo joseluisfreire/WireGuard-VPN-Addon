@@ -59,7 +59,7 @@ Apesar do WireGuard estar nativo tanto no kernel Linux quanto no RouterOS, o **M
 │                                                          │        │                       │
 │  addon_wireguard.js ──► /addons/wireguard/index.php      │  SQL   │ Tabelas:              │
 │                              │                           ├───────►│ • wg_ramais (peers)   │
-│                     wg_actions_post.php                  │◄───────┤ • nas (routers)       │
+│                     wg_actions_post.php                  │◄───────┤ • nas (ramais) Nativa │
 │                              │                           │        │                       │
 └──────────────────────────────┼───────────────────────────┘        └───────────────────────┘
                                │
@@ -93,11 +93,6 @@ Apesar do WireGuard estar nativo tanto no kernel Linux quanto no RouterOS, o **M
 | **wg-mkauthd** | Daemon em Go — bridge entre PHP e wireguard-tools via Unix socket | [wg-mkauthd](https://github.com/joseluisfreire/wg-mkauthd) |
 | **wireguard-tools-static** | `wg` e `wg-quick` compilados estaticamente (zero dependências) | [wireguard-tools-static](https://github.com/joseluisfreire/wireguard-tools-static) |
 
-## ⚡ Instalação Rápida
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/joseluisfreire/WireGuard-VPN-Addon/main/bootstrap.sh | bash
-```
 
 ## ⚡ Instalação e Gerenciamento
 O Addon possui um instalador automatizado (bootstrap.sh) que configura tudo: dependências, diretórios, permissões, painel PHP e o serviço em background. Execute os comandos abaixo no terminal do seu servidor MK-AUTH logado como root.

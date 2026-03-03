@@ -26,8 +26,12 @@ echo -e "${BOLD}${CYAN}"
 echo "  ╦ ╦┬┬─┐┌─┐╔═╗┬ ┬┌─┐┬─┐┌┬┐  ╦  ╦╔═╗╔╗╔"
 echo "  ║║║│├┬┘├┤ ║ ╦│ │├─┤├┬┘ ││  ╚╗╔╝╠═╝║║║"
 echo "  ╚╩╝┴┴└─└─┘╚═╝└─┘┴ ┴┴└──┴┘   ╚╝ ╩  ╝╚╝"
+echo -e "${YELLOW}"
+echo "         ╔╦╗╦╔═   ╔═╗╦ ╦╔╦╗╦ ╦           "
+echo "         ║║║╠╩╗───╠═╣║ ║ ║ ╠═╣   Addon   "
+echo "         ╩ ╩╩ ╩   ╩ ╩╚═╝ ╩ ╩ ╩           "
 echo -e "${NC}"
-echo -e "  ${BOLD}Addon para MK-AUTH${NC} — Instalador automático"
+echo -e "  ${BOLD}Instalador Automático & Gerenciador${NC}"
 echo ""
 
 # ── Verificações ──────────────────────────────────────────────────────

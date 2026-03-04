@@ -1464,7 +1464,6 @@ if (!isset($snapshots)) {
 </div>
 <?php endforeach; ?>
 
-</div>
 <?php elseif ($tab === 'peers'): ?>
 
 	<?php
@@ -1978,123 +1977,175 @@ if (!isset($snapshots)) {
 
 <?php elseif ($tab === 'provisionar'): ?>
 
-<div class="box custom-card" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 2rem; background: #fafafa;">
-    
+    <!-- O FORMULÁRIO ENGLOBA TUDO (Banner + Cards) PARA ENVIAR OS DADOS CORRETAMENTE -->
     <form id="form_provisionar" method="POST" action="?tab=provisionar">
         
         <!-- Ação exata que o Backend espera -->
         <input type="hidden" name="acao" value="provisionar_ramais">
 
-        <!-- NOVO LAYOUT EM 3 CARDS (Intro, Rede, Integração) -->
-        <div class="columns is-multiline mb-5">
+        <!-- ==============================================================
+             CABEÇALHO WIZARD: FRAME ESTÁTICO COM PAINEL VISUAL DE IP
+             ============================================================== -->
+        <div class="notification" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); border: none; color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(14,165,233,0.3); padding: 1.5rem; margin-bottom: 2rem; width: 100%; display: flex; align-items: center; justify-content: space-between;">
             
-            <!-- CARD 1: Título e Explicação -->
-            <div class="column is-4">
-                <div class="box" style="height: 100%; border-radius: 10px; border: 1px solid #eef0f3; box-shadow: 0 2px 8px rgba(0,0,0,0.02); background: #ffffff;">
-                    <div class="mb-4">
-                        <span class="icon is-large has-text-link" style="background: #eff5fb; border-radius: 12px; height: 3.5rem; width: 3.5rem;">
-                            <i class="bi bi-hdd-network-fill" style="font-size: 1.8rem;"></i>
-                        </span>
-                    </div>
-                    <h2 class="title is-4 mb-2" style="color: #1e293b;">Provisionar NAS</h2>
-                    <p class="has-text-grey is-size-6" style="line-height: 1.5;">
-                        Crie peers WireGuard para as RouterBoards. Use <strong>OTP (One Touch Provisioning)</strong> se elegível para injetar as configurações diretamente na MikroTik via SSH, automatizando a implantação.
+            <!-- ESQUERDA: CÓPIA LITERAL -->
+            <div style="display: flex; align-items: center; gap: 1.5rem;">
+                <div style="font-size: 3rem; opacity: 0.9; line-height: 1;">
+                    <i class="bi bi-diagram-3-fill"></i>
+                </div>
+                <div>
+                    <h3 class="title is-4" style="color: white; margin-bottom: 0.25rem; display: flex; align-items: center;">
+                        Rede WireGuard: <span style="font-family: monospace; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 6px; letter-spacing: 1px; margin-left: 10px; font-weight: normal; font-size: 1.2rem;"><?php echo htmlspecialchars($wg_base_cidr ?: 'Não configurada'); ?></span>
+                    </h3>
+                    <p style="opacity: 0.95; font-size: 1rem; margin-top: 0.5rem; margin-bottom: 0;">
+                        IP do Servidor: <strong><?php echo htmlspecialchars($wg_server_host); ?></strong> &nbsp;|&nbsp; 
+                        Capacidade: <strong><?php echo $wg_max_peers; ?> peers</strong>
                     </p>
                 </div>
             </div>
 
-            <!-- CARD 2: Rede Base e Estratégia de IP -->
-            <div class="column is-4">
-                <div class="box" style="height: 100%; display: flex; flex-direction: column; border-radius: 10px; border: 1px solid #eef0f3; box-shadow: 0 2px 8px rgba(0,0,0,0.02); background: #ffffff;">
-                    <h3 class="subtitle is-6 has-text-grey-dark mb-3 font-weight-bold">
-                        <i class="bi bi-diagram-3 mr-1"></i> Rede WG e Alocação
-                    </h3>
-                    
-                    <div class="is-size-3 has-text-weight-bold has-text-dark mb-1" style="letter-spacing: -1px;">
-                        <?php echo htmlspecialchars($wg_base_cidr); ?>
-                    </div>
-                    <input type="hidden" name="wg_base_cidr" value="<?php echo htmlspecialchars($wg_base_cidr); ?>">
-                    
-                    <div class="mb-4">
-                        <?php if (isset($wg_server_host) && $wg_server_host !== '' && isset($wg_max_peers) && $wg_max_peers > 0): ?>
-                            <span class="tag is-info is-light">Host: <?php echo htmlspecialchars($wg_server_host); ?></span>
-                        <?php elseif (isset($wg_server_host) && $wg_server_host !== ''): ?>
-                            <span class="tag is-info is-light">Host: <?php echo htmlspecialchars($wg_server_host); ?></span>
-                        <?php else: ?>
-                            <span class="tag is-danger is-light"><i class="bi bi-exclamation-triangle mr-1"></i> Configure wg0 primeiro</span>
-                        <?php endif; ?>
-                    </div>
-
-                    <div class="mt-auto">
-                        <p class="is-size-7 has-text-grey mb-2" style="font-weight: 600;">ESTRATÉGIA DE IP (/32)</p>
-                        <div class="control is-flex" style="gap: 10px;">
-                            <label class="radio is-flex-grow-1 m-0 p-2 has-text-centered" style="border: 1px solid #ddd; border-radius: 6px; cursor: pointer; transition: 0.2s; background: #fafafa;">
-                                <input type="radio" name="alloc_mode" value="seq" checked>
-                                <br><strong class="is-size-7">Sequencial</strong>
-                            </label>
-                            <label class="radio is-flex-grow-1 m-0 p-2 has-text-centered" style="border: 1px solid #ddd; border-radius: 6px; cursor: pointer; transition: 0.2s; background: #fafafa;">
-                                <input type="radio" name="alloc_mode" value="rand">
-                                <br><strong class="is-size-7">Aleatório</strong>
-                            </label>
-                        </div>
-                    </div>
+            <!-- DIREITA: Painel Interativo (Agora com ícones de RBs reais) -->
+            <div style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px); padding: 0.8rem 1.2rem; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 8px 16px rgba(0,0,0,0.1);">
+                
+                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px;">
+                    <i class="bi bi-hdd-network" style="color: #fde047; font-size: 1.1rem;"></i>
+                    <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #fff;">
+                        Estratégia de IPs p/ RBs
+                    </span>
+                    <i class="bi bi-question-circle-fill" title="Define como o WireGuard irá gerar os endereços de IP para as RBs conectadas." style="cursor: help; opacity: 0.8; font-size: 0.85rem;"></i>
                 </div>
-            </div>
 
-            <!-- CARD 3: O Dado Mais Importante (Integração de Rota) -->
-            <div class="column is-4">
-                <div class="box" style="height: 100%; display: flex; flex-direction: column; border-radius: 10px; border: 2px solid #e0f2fe; background: #f8fafc; box-shadow: 0 4px 12px rgba(14, 165, 233, 0.05);">
-                    <h3 class="subtitle is-6 has-text-link-dark mb-3" style="font-weight: 700;">
-                        <i class="bi bi-arrow-left-right mr-1"></i> Ação no MK-Auth
-                    </h3>
+                <div style="display: flex; align-items: center; gap: 1rem;">
                     
-                    <div class="field mt-auto">
-                        <!-- RADIUS 1: Instalação Limpa -->
-                        <label class="radio" style="display: block; background: #ffffff; padding: 12px 14px; border-radius: 8px; border: 1px solid #bae6fd; cursor: pointer; margin-bottom: 10px; margin-left: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-                            <div class="is-flex is-align-items-center mb-1">
-                                <input type="radio" name="atualizar_ip_nas" value="1" checked class="mr-2" style="transform: scale(1.2);">
-                                <strong class="has-text-dark" style="font-size: 0.95rem;">Instalação Direta (Novo)</strong>
+                    <!-- OPÇÃO 1: SEQUENCIAL -->
+                    <label style="cursor: pointer; padding: 0.5rem 0.8rem; border-radius: 8px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.15); transition: transform 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 140px;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        <div style="display: flex; align-items: center; margin-bottom: 6px; color: white; font-weight: 700; font-size: 0.85rem;">
+                            <input type="radio" name="alloc_mode" value="seq" checked style="margin-right: 6px; transform: scale(1.2);"> Sequencial
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px; opacity: 0.95;">
+                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
+                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
+                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #bbf7d0;">.2</span>
                             </div>
-                            <p class="has-text-grey" style="font-size: 0.75rem; padding-left: 26px; line-height: 1.4;">
-                                Atualiza o IP da RB no sistema imediatamente. Ideal para instalações limpas sem VPN (PPTP/SSTP) prévia.
-                            </p>
-                        </label>
+                            <i class="bi bi-arrow-right" style="font-size: 0.7rem; color: rgba(255,255,255,0.4);"></i>
+                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
+                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
+                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #bbf7d0;">.3</span>
+                            </div>
+                            <i class="bi bi-arrow-right" style="font-size: 0.7rem; color: rgba(255,255,255,0.4);"></i>
+                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
+                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
+                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #bbf7d0;">.4</span>
+                            </div>
+                        </div>
+                    </label>
 
-                        <!-- RADIUS 2: Migração Segura -->
-                        <label class="radio" style="display: block; background: #ffffff; padding: 12px 14px; border-radius: 8px; border: 1px solid #e2e8f0; cursor: pointer; margin-left: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-                            <div class="is-flex is-align-items-center mb-1">
-                                <input type="radio" name="atualizar_ip_nas" value="0" class="mr-2" style="transform: scale(1.2);">
-                                <strong class="has-text-dark" style="font-size: 0.95rem;">Migração de Protocolo</strong>
+                    <!-- OPÇÃO 2: ALEATÓRIO -->
+                    <label style="cursor: pointer; padding: 0.5rem 0.8rem; border-radius: 8px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.15); transition: transform 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 140px;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        <div style="display: flex; align-items: center; margin-bottom: 6px; color: white; font-weight: 700; font-size: 0.85rem;">
+                            <input type="radio" name="alloc_mode" value="rand" style="margin-right: 6px; transform: scale(1.2);"> Aleatório
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px; opacity: 0.95;">
+                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
+                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
+                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #fef08a;">.14</span>
                             </div>
-                            <p class="has-text-grey" style="font-size: 0.75rem; padding-left: 26px; line-height: 1.4;">
-                                Mantém o IP de cadastro intacto. Suba o túnel WG em paralelo com segurança e depois use o botão <strong>"Efetivar Rota"</strong> na aba Peers para virar a chave!
-                            </p>
-                        </label>
-                    </div>
+                            <i class="bi bi-three-dots" style="font-size: 0.7rem; color: rgba(255,255,255,0.4);"></i>
+                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
+                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
+                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #fef08a;">.89</span>
+                            </div>
+                            <i class="bi bi-three-dots" style="font-size: 0.7rem; color: rgba(255,255,255,0.4);"></i>
+                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
+                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
+                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #fef08a;">.21</span>
+                            </div>
+                        </div>
+                    </label>
+
                 </div>
             </div>
         </div>
+        <!-- FIM DO BANNER AZUL -->
+
+        <!-- ==============================================================
+             CAIXA BRANCA: CARDS DE DECISÃO DE PROVISIONAMENTO
+             ============================================================== -->
+        <div class="box custom-card" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 2rem; background: #fafafa;">
+            
+            <div class="columns is-desktop mb-5">
+                
+                <!-- OPÇÃO 1: OFICIAL (Verde) -->
+                <div class="column is-6">
+                    <label class="box" style="height: 100%; border: 2px solid #bbf7d0; border-left: 8px solid #22c55e; background: #f0fdf4; cursor: pointer; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(34, 197, 94, 0.1);">
+                        <div class="is-flex is-align-items-center mb-3">
+                            <input type="radio" name="atualizar_ip_nas" value="1" checked style="transform: scale(1.5); margin-right: 15px;">
+                            <h3 class="title is-5 mb-0" style="color: #166534; display: flex; align-items: center;">
+                                <i class="bi bi-check-circle-fill" style="margin-right: 8px;"></i>
+                                Integração Direta<span class="tag is-success is-light ml-2" style="font-weight: 700; border: 1px solid #bbf7d0; font-size: 0.9rem;">Oficial</span>
+                            </h3>
+                        </div>
+                        <div class="has-text-grey-dark" style="margin-left: 34px; font-size: 0.9rem; line-height: 1.5;">
+                            <p>
+                                Crie e configure o túnel para a integração das suas RBs MikroTik com o sistema MK-Auth. O novo IP gerado pelo WireGuard será atualizado <strong>IMEDIATAMENTE</strong> em "Controle de Ramais", gravando no campo "IP do MK" das RBs selecionadas.
+                            </p>
+                            <p class="mt-3" style="padding-top: 10px; border-top: 1px dashed rgba(34, 197, 94, 0.3);">
+                                <strong style="color: #15803d;"><i class="bi bi-magic" style="margin-right: 4px;"></i> Sobre o OTP (One Touch Provisioning):</strong> 
+                                Para que a "varinha mágica" funcione corretamente, o ramal precisa ter os dados essenciais de cadastro validados (IP Fallback, Senha do user mkauth e/ou 
+                                <a href="https://mk-auth.com.br/page/configurar-ssh" target="_blank" rel="noopener noreferrer" style="color: #15803d; text-decoration: underline; font-weight: 600; position: relative; z-index: 10;" onclick="event.stopPropagation();" title="Abrir Manual MK-Auth">chave SSH devidamente importada <i class="bi bi-box-arrow-up-right" style="font-size: 0.75rem; margin-left: 2px;"></i></a>). 
+                                Garantindo o correto preenchimento desses dados, basta clicar na varinha mágica para o sistema acessar a RB e injetar todas as configurações!
+                            </p>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- OPÇÃO 2: PARALELO (Amarelo) -->
+                <div class="column is-6">
+                    <label class="box" style="height: 100%; border: 2px solid #fef08a; border-left: 8px solid #eab308; background: #fefce8; cursor: pointer; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(234, 179, 8, 0.1);">
+                        <div class="is-flex is-align-items-center mb-3">
+                            <input type="radio" name="atualizar_ip_nas" value="0" style="transform: scale(1.5); margin-right: 15px;">
+                            <h3 class="title is-5 mb-0" style="color: #854d0e; display: flex; align-items: center;">
+                                <i class="bi bi-diagram-2" style="margin-right: 8px;"></i>
+                                Migração 
+                                <span class="tag is-warning is-light ml-2" style="font-weight: 700; border: 1px solid #fef08a; color: #854d0e; font-size: 0.9rem;">Em Paralelo</span>
+                            </h3>
+                        </div>
+                        <div class="has-text-grey-dark" style="margin-left: 34px; font-size: 0.9rem; line-height: 1.5;">
+                            <p>
+                                O IP do MK em "Controle de Ramais" <strong>não será alterado agora</strong>. O WireGuard será configurado de forma silenciosa. Ideal para RBs em produção que já possuem túneis antigos (PPTP, OVPN, L2TP). Crie o túnel, garanta que ele conectou e, só então, vá na aba "Peers" e clique em <strong>"Efetivar Rota"</strong>, oficializando a migração com total segurança.
+                            </p>
+                            <p class="mt-3" style="padding-top: 10px; border-top: 1px dashed rgba(234, 179, 8, 0.4);">
+                                <strong style="color: #854d0e;"><i class="bi bi-magic" style="margin-right: 4px;"></i> Sobre o OTP (One Touch):</strong> 
+                                Neste modo, a mágica utilizará o túnel antigo já existente no cadastro para acessar a RB via SSH e injetar a nova VPN. Caso a conexão por essa rota primária falhe, o Addon utilizará o IP Fallback como último recurso.
+                            </p>
+                        </div>
+                    </label>
+                </div>
+                
+            </div> <!-- FIM DAS COLUNAS DE CARDS -->
         
-        <!-- A TABELA DE RAMAIS MESTRA -->
+        <!-- ==============================================================
+             A TABELA DE RAMAIS MESTRA (REORDENADA)
+             ============================================================== -->
         <div class="table-container">
             <table class="table is-fullwidth is-hoverable is-striped" style="background: white; border-radius: 8px; overflow: hidden; font-size: 0.9rem;">
                 <thead style="background-color: #f1f5f9;">
                     <tr>
-                        <th width="3%" class="has-text-centered"><input type="checkbox" onchange="toggleAllRamais(this)"></th>
-                        <th width="5%">ID</th>
-                        <th width="15%">Nome do Ramal</th>
-                        <th width="12%">IP do MK</th>
-                        <!-- COLUNA INTELIGENTE -->
-                        <th width="14%" class="has-text-centered" title="Status de operação do Túnel">Tunnel Wireguard</th>
-                        <th width="14%">IP Fallback (Acesso)</th>
-                        <th width="8%" class="has-text-centered">Porta SSH</th>
-                        <th width="12%">Senha mkauth</th>
-                        <th width="17%" class="has-text-centered">Status OTP (SSH)</th>
+                        <th width="4%" class="has-text-centered">
+                            <input type="checkbox" onchange="toggleAllRamais(this)" title="Selecionar Todos">
+                        </th>
+                        <th width="16%">Nome do Ramal</th>
+                        <th width="15%" class="has-text-centered" title="Status de operação do Túnel">Túnel Wireguard</th>
+                        <th width="13%" class="has-text-centered">IP do MK</th>
+                        <th width="13%" class="has-text-centered">IP Fallback (SSH)</th>
+                        <th width="10%" class="has-text-centered">Porta SSH</th>
+                        <th width="14%" class="has-text-centered">Senha MK-Auth</th>
+                        <th width="15%" class="has-text-centered">Validação OTP</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if (empty($ramais_list)): ?>
-                        <tr><td colspan="9" class="has-text-centered py-5">Nenhum NAS cadastrado no MK-AUTH.</td></tr>
+                        <tr><td colspan="8" class="has-text-centered py-5 has-text-grey"><i class="bi bi-inbox is-size-3"></i><br>Nenhum NAS cadastrado no MK-AUTH.</td></tr>
                     <?php else: ?>
                         <?php foreach ($ramais_list as $row): 
                             
@@ -2118,77 +2169,81 @@ if (!isset($snapshots)) {
 								<input type="checkbox" class="ramal-checkbox" name="ramal_ids[]" value="<?= $row['id_nas'] ?>" data-otp="<?= $otp_pronto ? '1' : '0' ?>" data-prov="<?= $ja_provisionado ? '1' : '0' ?>">
                             </td>
                             
-                            <!-- 2. ID -->
-                            <td class="is-vcentered has-text-weight-bold"><?= $row['id_nas'] ?></td>
-                            
-                            <!-- 3. NOME DO RAMAL -->
+                            <!-- 2. NOME DO RAMAL -->
                             <td class="is-vcentered">
-                                <strong><?= htmlspecialchars($row['shortname']) ?></strong>
+                                <strong><?= htmlspecialchars($row['shortname'] ?: 'NAS '.$row['id_nas']) ?></strong>
+                            </td>
+
+                            <!-- 3. STATUS DO TÚNEL -->
+                            <td class="is-vcentered has-text-centered">
+                                <?php if (!$ja_provisionado): ?>
+                                    <span class="tag is-light" style="font-weight: 600;" title="Ainda não existe túnel para esta RB">Não Configurado</span>
+                                <?php elseif ($is_disabled): ?>
+                                    <span class="tag is-danger is-light" style="font-weight: 600;" title="Túnel desativado! Habilite na aba peers!"><i class="bi bi-x-circle mr-1"></i> Desativado</span>
+                                <?php elseif ($ip_espelhado_ok): ?>
+                                    <span class="tag is-success is-light" style="font-weight: 600; border: 1px solid #bbf7d0;" title="Túnel em operação, IP do MK-Auth configurado e ativo"><i class="bi bi-check-circle-fill mr-1" style="color: #22c55e;"></i> Oficial</span>
+                                <?php else: ?>
+                                    <span class="tag is-warning is-light" style="font-weight: 600; border: 1px solid #fef08a;" title="Túnel gerado, mas ainda falta 'Efetivar Rota' na aba Peers"><i class="bi bi-diagram-2 mr-1" style="color: #ca8a04;"></i> Em Paralelo</span>
+                                <?php endif; ?>
                             </td>
 
                             <!-- 4. IP DO SISTEMA (MK-AUTH) -->
-                            <td class="is-vcentered">
-                                <span class="tag is-info is-light has-text-weight-bold"><?= htmlspecialchars($ip_mk_atual) ?></span>
-                            </td>
-
-                            <!-- 5. TUNNEL WIREGUARD (NOVA LÓGICA DE STATUS) -->
                             <td class="is-vcentered has-text-centered">
-                                <?php if (!$ja_provisionado): ?>
-                                    <!-- Caso 1: Ramal virgem sem peer -->
-                                    <span class="tag has-text-grey-dark" style="background-color: #e2e8f0; font-weight: 600;">Não configurado</span>
-                                
-                                <?php elseif ($is_disabled): ?>
-                                    <!-- Caso 4: Peer existe mas está Disabled -->
-                                    <span class="tag is-danger" style="font-weight: 600;"><i class="bi bi-x-circle mr-1"></i> Disabled</span>
-                                
-                                <?php elseif ($ip_espelhado_ok): ?>
-                                    <!-- Caso 2: IP WG = IP MK (Oficial) -->
-                                    <span class="tag is-success" style="font-weight: 600;"><i class="bi bi-check-circle mr-1"></i> Oficial</span>
-                                
+                                <?php if (!empty($ip_mk_atual)): ?>
+                                    <code><?= htmlspecialchars($ip_mk_atual) ?></code>
                                 <?php else: ?>
-                                    <!-- Caso 3: IP WG != IP MK (Em Paralelo) -->
-                                    <span class="tag is-warning" style="font-weight: 600; background-color: #fde047; color: #854d0e;"><i class="bi bi-exclamation-circle mr-1"></i> Em paralelo</span>
+                                    <span class="tag is-light" title="Sem IP principal definido">Sem IP</span>
                                 <?php endif; ?>
                             </td>
                             
-                            <!-- 6. IP FALLBACK -->
-                            <td class="is-vcentered">
-                                <?php if($has_ip): ?>
-                                    <span class="has-text-weight-bold" style="color: #363636;"><?= htmlspecialchars($row['ipfall']) ?></span>
-                                <?php else: ?>
-                                    <span class="tag is-danger is-light"><i class="bi bi-exclamation-circle mr-1"></i> Faltando</span>
-                                <?php endif; ?>
-                            </td>
-
-                            <!-- 7. PORTA SSH -->
+                            <!-- 5. IP FALLBACK -->
                             <td class="is-vcentered has-text-centered">
-                                <span class="has-text-grey"><?= htmlspecialchars($porta_ssh) ?></span>
-                            </td>
-
-                            <!-- 8. SENHA MKAUTH -->
-                            <td class="is-vcentered">
-                                <?php if($has_pass): ?>
-                                    <div class="is-flex is-align-items-center">
-                                        <span id="senha_txt_<?= $row['id_nas'] ?>" class="has-text-weight-bold is-family-monospace mr-2" data-senha="<?= htmlspecialchars($row['senha']) ?>" style="font-size: 1.1rem; color: #363636;">••••••</span>
-                                        <a class="has-text-grey" onclick="toggleSenhaSpan('senha_txt_<?= $row['id_nas'] ?>', this)" style="cursor: pointer;" title="Ver Senha"><i class="bi bi-eye"></i></a>
-                                    </div>
+                                <?php if($has_ip): ?>
+                                    <code><?= htmlspecialchars($row['ipfall']) ?></code>
                                 <?php else: ?>
-                                    <span class="tag is-danger is-light"><i class="bi bi-exclamation-circle mr-1"></i> Faltando</span>
+                                    <span class="tag is-danger is-light" title="IP Fallback é necessário para que o OTP funcione corretamente em um cenário de primeira instalação."><i class="bi bi-exclamation-circle mr-1"></i> Faltando</span>
                                 <?php endif; ?>
                             </td>
 
-							<!-- 9. STATUS OTP (SSH) -->
-							<td class="is-vcentered has-text-centered cell-ssh-status" data-id="<?= $row['id_nas'] ?>">
-								<?php if ($otp_pronto): ?>
-									<button type="button" class="button is-small is-light is-info" onclick="testarConexaoSsh(this, <?= $row['id_nas'] ?>)" style="font-weight: 600; transition: all 0.2s;">
-										<span class="icon is-small"><i class="bi bi-arrow-repeat"></i></span>
-										<span>Validar Acesso</span>
-									</button>
+                            <!-- 6. PORTA SSH -->
+                            <td class="is-vcentered has-text-centered">
+                                <span class="has-text-grey font-weight-bold"><?= htmlspecialchars($porta_ssh) ?></span>
+                            </td>
+
+							<!-- 7. SENHA MKAUTH -->
+							<td class="is-vcentered has-text-centered">
+								<?php if($has_pass): ?>
+									<!-- Usamos CSS inline flex e gap de 10px para garantir o espaçamento -->
+									<div style="display: flex; align-items: center; justify-content: center; gap: 10px; height: 100%;">
+										
+										<span id="senha_txt_<?php echo $row['id_nas']; ?>" 
+											  data-senha="<?php echo htmlspecialchars($row['senha']); ?>" 
+											  style="font-family: monospace; font-size: 1.1rem; font-weight: 700; color: #363636; letter-spacing: 1px; line-height: 1; margin-top: 3px;">••••••</span>
+										
+										<a onclick="toggleSenhaSpan('senha_txt_<?php echo $row['id_nas']; ?>', this)" 
+										   style="cursor: pointer; color: #64748b; display: flex; align-items: center;" 
+										   title="Ver/Ocultar Senha">
+											<i class="bi bi-eye" style="font-size: 1.1rem;"></i>
+										</a>
+										
+									</div>
 								<?php else: ?>
-									<span class="tag is-danger is-light" title="Faltam credenciais (IP ou Senha)"><i class="bi bi-x-circle mr-1"></i> Faltam Dados</span>
+									<span class="tag is-danger is-light"><i class="bi bi-exclamation-circle mr-1"></i> Faltando</span>
 								<?php endif; ?>
 							</td>
-						</tr>
+
+                            <!-- 8. STATUS OTP (SSH) -->
+                            <td class="is-vcentered has-text-centered cell-ssh-status" data-id="<?= $row['id_nas'] ?>">
+                                <?php if ($otp_pronto): ?>
+                                    <button type="button" class="button is-small is-light is-info" onclick="testarConexaoSsh(this, <?= $row['id_nas'] ?>)" style="font-weight: 600; transition: all 0.2s;">
+                                        <span class="icon is-small"><i class="bi bi-terminal-fill"></i></span>
+                                        <span>Testar SSH</span>
+                                    </button>
+                                <?php else: ?>
+                                    <span class="tag is-danger is-light" title="Faltam credenciais (IP ou Senha)"><i class="bi bi-x-circle mr-1"></i> Inválido</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </tbody>

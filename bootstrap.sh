@@ -240,7 +240,7 @@ if [[ -d "${ADDON_SRC}/wireguard" ]]; then
     ln -sf /opt/mk-auth/include/addons.inc.hhvm "$ADDON_DIR/addons.class.php"
     chown -R www-data:www-data "$ADDON_DIR"
     find "$ADDON_DIR" -type f -exec chmod 644 {} \;
-    chmod 755 "$ADDON_DIR"
+    find "$ADDON_DIR" -type d -exec chmod 755 {} \;
     ok "wireguard/* → ${ADDON_DIR}/"
 else
     warn "Diretório wireguard/ não encontrado no repo"

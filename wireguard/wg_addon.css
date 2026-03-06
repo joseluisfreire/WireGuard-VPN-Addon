@@ -100,26 +100,22 @@ h1, .title, .subtitle {
 }
 
 /* ==============================================================
-   5. CARD 2 e 3 ALINHAMENTO PERFEITO (MANTENDO A ALTURA NATURAL)
-	============================================================ */
+   5. ROLAGEM INTERNA DOS CARDS (IMPEDE ESTICAMENTO DA TELA)
+   ============================================================ */
 
-/* A Caixa Preta e a Tabela de Backups viram "molas" e preenchem o espaço vazio */
-#card_wg_conf_view pre,
+/* Removemos o código fantasma da antiga caixa preta. 
+   Agora criamos a classe .scroll-interno-card que transforma qualquer
+   div em uma "mola": preenche o espaço vazio e gera barra de rolagem! */
+   
+.scroll-interno-card,
 #view_backup_list .table-container {
-    flex: 1 1 0 !important;       /* Estica até o fundo do card */
-    height: auto !important;      /* Ignora altura em pixels */
-    min-height: 0 !important;     /* Cancela o min-height: 250px do HTML */
-    max-height: none !important;  /* Cancela o max-height: 235px do HTML */
-    overflow-y: auto !important;  /* Mantém o scroll interno */
-    margin-bottom: 0 !important;
-}
-
-/* Ajustes estéticos da caixa preta */
-#card_wg_conf_view pre {
-    padding: 0.75rem !important;
-    font-size: 0.75rem !important; 
-    line-height: 1.3 !important;
-    border-radius: 10px !important;
+	flex: 1 1 0 !important;       /* Estica até o fundo do card */
+	height: auto !important;      
+	min-height: 0 !important;     /* O segredo pro conteúdo não vazar o flexbox */
+	max-height: none !important;  
+	overflow-y: auto !important;  /* Barrinha de rolagem interna */
+	margin-bottom: 0 !important;
+	padding-right: 0.25rem;       /* Espaço pra barra não raspar na borda */
 }
 
 /* ========================================
@@ -303,4 +299,51 @@ h1, .title, .subtitle {
 .icon-online {
     animation: icon-pulse 1.5s infinite;
     color: #22c55e; /* Verde vivo */
+}
+/* ========================================
+   10. EFEITO LINHA FANTASMA (PEERS DESATIVADOS)
+   ======================================== */
+.peer-desativado {
+    opacity: 0.50;
+    background-color: #f8fafc !important;
+    filter: grayscale(100%);
+    pointer-events: none;
+    transition: all 0.3s ease;
+}
+
+/* Aplica um risco no nome do ramal para reforçar que está cortado */
+.peer-desativado td:nth-child(2) strong {
+    text-decoration: line-through;
+    color: #64748b;
+}
+
+/* Libera o clique APENAS na coluna do Checkbox e na coluna de Ações */
+.peer-desativado td:first-child,
+.peer-desativado td:last-child {
+    pointer-events: auto;
+    filter: grayscale(0%);
+}
+/* ========================================
+   11. ALINHAMENTO DE COLUNAS - TABELA PEERS
+   ======================================== */
+/* 1. Centralizar: Checkbox(1), IP(3), Status(4), Endpoint(5), Handshake(6), Ações(9) */
+#form_peers .table th:nth-child(1), #form_peers .table td:nth-child(1),
+#form_peers .table th:nth-child(3), #form_peers .table td:nth-child(3),
+#form_peers .table th:nth-child(4), #form_peers .table td:nth-child(4),
+#form_peers .table th:nth-child(5), #form_peers .table td:nth-child(5),
+#form_peers .table th:nth-child(6), #form_peers .table td:nth-child(6),
+#form_peers .table th:nth-child(9), #form_peers .table td:nth-child(9) {
+    text-align: center !important;
+}
+
+/* 2. RX(7) e TX(8) - O padrão pra números é alinhar à direita (Header e Dados) */
+#form_peers .table th:nth-child(7), #form_peers .table th:nth-child(8) {
+    text-align: right !important;
+}
+
+/* Corrige o input do IP para não ficar esticado se estiver centralizado */
+#form_peers .table td:nth-child(3) .input {
+    text-align: center !important;
+    width: auto !important;
+    display: inline-block;
 }

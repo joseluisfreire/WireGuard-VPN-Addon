@@ -1,238 +1,12 @@
 <?php
-define('WG_MAX_SNAPSHOTS', 5);
-
-/**
- * Captura o wg0.conf atual via daemon + dump SQL de wg_ramais.
- * Grava como snapshot FIFO de 5 no campo interface_text.
- *
- * Chamar ANTES de qualquer operação que altere o wg0.conf.
- */
-function wg_snapshot_interface(mysqli $db, string $socketPath, string $reason = 'manual'): bool
-{
-    // 1) Pega o wg0.conf atual do daemon
-    $resp = wg_call(['action' => 'server-get-config'], $socketPath);
-
-    if (empty($resp['ok']) || empty($resp['data']['rawText'])) {
-        error_log("[wg_backup] snapshot falhou: daemon não retornou rawText. reason=$reason");
-        return false;
-    }
-
-    $confAtual = $resp['data']['rawText'];
-
-    // 2) Gera SQL bruto de todos os peers (exceto interface_text)
-    $sqlDump   = '';
-    $peerCount = 0;
-
-    $rs = $db->query("SELECT * FROM wg_ramais ORDER BY id");
-
-    if ($rs) {
-        while ($row = $rs->fetch_assoc()) {
-            // Remove interface_text — é o próprio snapshot (evita recursão)
-            unset($row['interface_text']);
-            // Remove id — será gerado auto_increment na restauração
-            unset($row['id']);
-            
-            // Só incrementa o contador se NÃO for a Linha Mestra
-            if (isset($row['wg_client_id']) && $row['wg_client_id'] !== 'SERVER_MASTER') {
-                $peerCount++;
-            }
-
-            $cols = [];
-            $vals = [];
-            // Recriar o loop pegando os dados originais (agora a gente usa $row que não tem mais o id/interface_text)
-            foreach ($row as $col => $val) {
-                $cols[] = "`{$col}`";
-                if ($val === null) {
-                    $vals[] = 'NULL';
-                } else {
-                    $vals[] = "'" . $db->real_escape_string($val) . "'";
-                }
-            }
-
-            $sqlDump .= "INSERT INTO wg_ramais (" . implode(', ', $cols) . ") VALUES (" . implode(', ', $vals) . ");\n";
-        }
-        $rs->close();
-    }
-
-    // 3) Monta o snapshot
-    $novoSnapshot = [
-        'at'     => date('Y-m-d H:i:s'),
-        'reason' => $reason,
-        'conf'   => $confAtual,
-        'sql'    => $sqlDump,
-        'peers'  => $peerCount,
-    ];
-
-    // 4) Busca snapshots existentes
-    $row = $db->query(
-        "SELECT interface_text FROM wg_ramais WHERE interface_text IS NOT NULL AND interface_text != '' LIMIT 1"
-    );
-
-    $snapshots = [];
-    if ($row && ($r = $row->fetch_assoc()) && !empty($r['interface_text'])) {
-        $snapshots = json_decode($r['interface_text'], true) ?: [];
-    }
-
-    // 5) FIFO: insere no início, corta no máximo
-    array_unshift($snapshots, $novoSnapshot);
-    $snapshots = array_slice($snapshots, 0, WG_MAX_SNAPSHOTS);
-
-    // 6) Serializa
-    $jsonText = json_encode($snapshots, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-    // 7) Grava em TODOS os peers
-    $stmt = $db->prepare("UPDATE wg_ramais SET interface_text = ?");
-    if (!$stmt) {
-        error_log("[wg_backup] prepare UPDATE falhou: " . $db->error);
-        return false;
-    }
-
-    $stmt->bind_param('s', $jsonText);
-    $ok = $stmt->execute();
-    $stmt->close();
-
-    if ($ok) {
-        error_log("[wg_backup] snapshot gravado. reason={$reason} peers={$peerCount} total_snapshots=" . count($snapshots));
-    }
-
-    return $ok;
-}
-
-// =========================================================================
-// Helpers de validação (já existentes, mantidos intactos)
-// =========================================================================
-
-// Valida rede da interface
-function ipInSubnet($ipWithCidr, $netip, $netmask) {
-    $parts = explode('/', trim($ipWithCidr));
-    if (count($parts) != 2) return false;
-    $ip = $parts[0];
-
-    $ipLong   = ip2long($ip);
-    $netLong  = ip2long($netip);
-    $maskBits = (int)$netmask;
-
-    if ($ipLong === false || $netLong === false) return false;
-    if ($maskBits < 0 || $maskBits > 32) return false;
-
-    $mask = -1 << (32 - $maskBits);
-
-    return (($ipLong & $mask) === ($netLong & $mask));
-}
-
-function wg_get_net_from_daemon($socketPath) {
-    $status_data = wg_call(['action' => 'status'], $socketPath);
-    $wg_base_cidr = $status_data['data']['wg_address'] ?? '';
-
-    if ($wg_base_cidr === '' || strpos($wg_base_cidr, '/') === false) {
-        return [null, null];
-    }
-
-    [$net_ip, $net_mask] = explode('/', $wg_base_cidr, 2);
-    $net_long = ip2long($net_ip);
-    $mask     = (int)$net_mask;
-
-    if ($net_long === false || $mask < 0 || $mask > 32) {
-        return [null, null];
-    }
-
-    return [$net_ip, $mask];
-}
-
-if (!function_exists('isValidIPv4Cidr')) {
-    function isValidIPv4Cidr($str) {
-        $str   = trim($str);
-        $parts = explode('/', $str);
-
-        if (count($parts) !== 2) {
-            return false;
-        }
-
-        [$ip, $cidr] = $parts;
-
-        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-            return false;
-        }
-
-        if (!ctype_digit($cidr)) {
-            return false;
-        }
-
-        $cidr = (int)$cidr;
-        return $cidr >= 0 && $cidr <= 32;
-    }
-}
-
-function wg_allocate_next_ip($serverAddress, $pdo) {
-    list($serverIP, $mask) = explode('/', $serverAddress);
-
-    $net_long = ip2long($serverIP);
-    $mask = (int)$mask;
-
-    $stmt = $pdo->query("SELECT address FROM wireguard_peers WHERE enabled = 1");
-    $used_ips = [];
-
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $ip_only = explode('/', $row['address'])[0];
-        $used_ips[$ip_only] = true;
-    }
-
-    $used_ips[$serverIP] = true;
-
-    $free_ip = wg_pick_free_ip_seq($net_long, $mask, $used_ips);
-
-    if (!$free_ip) {
-        throw new Exception("Sem IPs disponíveis na rede $serverAddress");
-    }
-
-    return $free_ip . '/32';
-}
-
-function wg_pick_free_ip_seq($net_long, $mask, array $used_ips) {
-    $host_bits = 32 - $mask;
-    $max_hosts = ($host_bits > 0) ? (1 << $host_bits) : 1;
-
-    $mask_long = ($mask === 0) ? 0 : ((-1 << (32 - $mask)) & 0xFFFFFFFF);
-    $network_long = $net_long & $mask_long;
-
-    for ($offset = 1; $offset < $max_hosts - 1; $offset++) {
-        $ip_long = $network_long + $offset;
-        $ip      = long2ip($ip_long);
-
-        if (!isset($used_ips[$ip])) {
-            return $ip;
-        }
-    }
-    return null;
-}
-
-function wg_pick_free_ip_rand($net_long, $mask, array $used_ips) {
-    $host_bits = 32 - $mask;
-    $max_hosts = ($host_bits > 0) ? (1 << $host_bits) : 1;
-
-    $mask_long = ($mask === 0) ? 0 : ((-1 << (32 - $mask)) & 0xFFFFFFFF);
-    $network_long = $net_long & $mask_long;
-
-    $tries = 0;
-    while ($tries < 1000) {
-        $offset = mt_rand(1, $max_hosts - 2);
-        $ip_long = $network_long + $offset;
-        $ip      = long2ip($ip_long);
-
-        if (!isset($used_ips[$ip])) {
-            return $ip;
-        }
-        $tries++;
-    }
-    return null;
-}
 
 // =========================================================================
 // BLOCO PRINCIPAL DE AÇÕES POST
 // =========================================================================
 if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = isset($_POST['acao']) ? trim($_POST['acao']) : '';
-
+    $msg_erro = '';
+	
     file_put_contents(
         '/tmp/wg_flow.log',
         date('c') . " POST ACAO={$acao} RAW=" . http_build_query($_POST) . "\n",
@@ -303,7 +77,7 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-	// =========================================================================
+    // =========================================================================
     // EXECUTAR OTP: INJEÇÃO DIRETA VIA SSH NO MIKROTIK
     // =========================================================================
     if ($acao === 'executar_otp_unitario') {
@@ -419,15 +193,38 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
             'script' => $rsc
         ]);
         
-        $fp = fsockopen("unix:///run/wgmkauth.sock", -1, $errno, $errstr, 5);
+        // Conexão com o Daemon - Voltando pro fsockopen que sabemos que funciona!
+        $fp = @fsockopen("unix:///run/wgmkauth.sock", -1, $errno, $errstr, 5);
         if (!$fp) { echo json_encode(['status' => 'error', 'msg' => "Falha Socket Go"]); exit; }
         
         fwrite($fp, $payload . "\n");
         $resposta = json_decode(stream_get_contents($fp), true);
         fclose($fp);
         
+        // --- RELATÓRIO DE AUDITORIA BLINDADO (Estilo Terminal) ---
         if (isset($resposta['ok']) && $resposta['ok'] === true) {
-            echo json_encode(['status' => 'ok', 'ip' => $resposta['data']['ip'], 'metodo' => $resposta['data']['metodo']]);
+            
+            $rsc_seguro = $rsc ?? '';
+            $qtd_linhas = count(explode("\n", trim($rsc_seguro)));
+            
+            $ip_usado = $resposta['data']['ip'] ?? 'Desconhecido';
+            $metodo   = isset($resposta['data']['metodo']) ? strtoupper($resposta['data']['metodo']) : 'SSH';
+            
+            $ipfall_seguro = isset($row['ipfall']) ? trim($row['ipfall']) : '';
+            $tipo_ip = ($ip_usado === $ipfall_seguro && $ipfall_seguro !== '') ? 'IP Fallback' : 'IP Túnel';
+
+            // Monta o visual em HTML (Estilo Terminal Hacker)
+            $msg_html  = "<div style='padding-left: 15px; margin-top: 5px; color: #cbd5e1; font-family: monospace; font-size: 0.9em; line-height: 1.5;'>";
+            $msg_html .= "<span style='color: #38bdf8;'>❯</span> <b>Ramal:</b> {$row['peer_name']}<br>";
+            $msg_html .= "<span style='color: #38bdf8;'>❯</span> <b>Conexão:</b> {$tipo_ip} (<span style='color: #fbbf24;'>{$ip_usado}</span>)<br>";
+            $msg_html .= "<span style='color: #38bdf8;'>❯</span> <b>Método:</b> Injeção via {$metodo}<br>";
+            $msg_html .= "<span style='color: #4ade80;'>✔</span> <span style='color: #94a3b8;'>Script idempotente de {$qtd_linhas} linhas processado.</span>";
+            $msg_html .= "</div>";
+
+            echo json_encode([
+                'status'   => 'ok',
+                'msg_html' => $msg_html
+            ]);
         } else {
             echo json_encode(['status' => 'error', 'msg' => $resposta['message'] ?? 'Falha RB', 'debug' => $resposta['data']['debug'] ?? []]);
         }
@@ -2095,4 +1892,3 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 } // fim if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST')
-

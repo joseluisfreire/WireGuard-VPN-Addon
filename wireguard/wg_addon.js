@@ -440,7 +440,7 @@ function submitProvisionarRamais() {
             } else {
                 // Tenta achar o nome na tabela para ficar bonito no log
                 let row = cb.closest('tr');
-                let tdNome = row ? row.querySelector('td:nth-child(3)') : null;
+                let tdNome = row ? row.querySelector('td:nth-child(2)') : null;
                 let nomeRb = tdNome ? tdNome.innerText.trim() : 'NAS ID ' + cb.value;
                 rbsValidas.push({ id_nas: cb.value, nome: nomeRb });
             }
@@ -489,7 +489,12 @@ function submitProvisionarRamais() {
                 let data = await res.json();
                 
                 if(data.status === 'ok') {
-                    logLine.innerHTML = `<span style="color:#4ade80;">[${i+1}/${rbs.length}] ✅ Sucesso em <b>${rb.nome}</b>!</span> <span style="font-size: 0.75rem; color:#94a3b8;">(Injetado via ${data.metodo})</span>`;
+                    // Mantendo a essência "Terminal Escuro"
+                    logLine.innerHTML = `
+                        <div style="margin-bottom: 15px; border-left: 2px solid #4ade80;">
+                            <span style="color:#4ade80; font-weight: bold; margin-left: 10px;">[${i+1}/${rbs.length}] ✅ SUCESSO NO NAS: ${rb.nome}</span>
+                            ${data.msg_html}
+                        </div>`;
                 } else {
                     logLine.innerHTML = `<span style="color:#f87171;">[${i+1}/${rbs.length}] ❌ Falha em <b>${rb.nome}</b>: ${data.msg}</span>`;
                     console.warn("Log SSH Falha:", data.debug);
@@ -575,6 +580,45 @@ function testarConexaoSsh(btnElement, id_nas, event = null) {
             </button>`;
     });
 }
+
+function submitOtpFromPeers(event) {
+    // Bloqueia o recarregamento fantasma da página
+    if (event) {
+        event.preventDefault();
+    }
+
+    const checkboxes = document.querySelectorAll('.peer-checkbox:checked');
+    
+    if (checkboxes.length === 0) {
+        alert('Selecione pelo menos um peer para executar a varinha mágica.');
+        return false;
+    }
+    
+    let rbs = [];
+    checkboxes.forEach(chk => {
+        let id_nas = chk.getAttribute('data-id_nas');
+        let nome = chk.getAttribute('data-nome');
+        
+        if (id_nas && id_nas !== "0" && id_nas !== "") {
+            rbs.push({ id_nas: id_nas, nome: nome });
+        }
+    });
+    
+    if (rbs.length === 0) {
+        alert('Nenhum dos peers selecionados possui um NAS válido (MK-Auth) cadastrado.');
+        return false;
+    }
+    
+    // --- TRAVA DE SEGURANÇA (EXATAMENTE COMO NA OUTRA ABA) ---
+    const msgConfirmacao = "✨ Executar o Auto OTP (One Touch Provisioning) nos Peers selecionados?\n\nO sistema irá se conectar via SSH a cada RB para aplicar as configurações do WireGuard automaticamente.";
+    
+    if (confirm(msgConfirmacao)) {
+        // Se ele clicar em OK, a mágica acontece
+        abrirModalOtp(rbs);
+    }
+    // Se clicar em Cancelar, nada acontece e ele volta pra tabela de boa!
+}
+
 // ==============================================================
 // RADAR LIVE STATS - O "Efeito WinBox" (Atualiza RX/TX ao vivo)
 // ==============================================================
@@ -652,7 +696,7 @@ function revelarPerigo(id_peer) {
             <p>Os comandos nativos do ROS7.x WG Import (WinBox) e config-string são <b>limitados!</b></p>
             
             <p style="color: #dc2626; font-weight: 600; background: #fee2e2; padding: 10px; border-radius: 6px; margin: 15px 0;">
-                Eles <b>NÃO</b> possuem lógica de <b>idempotência</b> e estão sujeitos a duplicar interfaces e endereços IP se rodados mais de uma vez.
+                Eles <b>NÃO</b> possuem lógica de <b>idempotência</b> e estão sujeitos a duplicar interfaces e endereços IP se executados mais de uma vez.
             </p>
             
             <p>Para atestar, veja os diversos relatos de bugs e crashes no <b>Fórum Oficial da MikroTik</b>:</p>
@@ -666,7 +710,7 @@ function revelarPerigo(id_peer) {
             <p><b>Por que o método sugerido pelo ADDON é melhor? 😎</b></p>
             <p>O método <b>.RSC</b> é inteligente, idempotente e faz uma varredura prévia no ambiente, garantindo a <b>não duplicidade</b>.</p>
             
-            <p style="margin-top: 15px; font-weight: bold; color: #1e293b;">Deseja liberar as opções de importação nativas por SUA CONTA E RISCO? (NÃO RECOMENDADO)</p>
+            <p style="margin-top: 15px; font-weight: bold; color: #1e293b;">Deseja liberar as opções de importação nativas por SUA CONTA E RISCO?</p>
         </div>
     `;
 

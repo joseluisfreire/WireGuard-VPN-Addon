@@ -210,11 +210,60 @@ if (!$is_daemon_ok) {
                 </div>
 
                 <?php if (!$daemon_ok): ?>
+                    <!-- CASO 1: DAEMON OFFLINE -->
                     <div class="notification is-danger"><p><i class="bi bi-x-circle-fill"></i> Daemon Offline</p></div>
+
                 <?php elseif (!$interface_configurada): ?>
-                    <div class="notification is-info is-light"><p>Primeira Instalação</p></div>
-                    <!-- Seu form de criar servidor ... -->
+                    <!-- CASO 2: PRIMEIRA INSTALAÇÃO (Motor Original / Visual Novo) -->
+                    <div class="notification is-info is-light is-size-7">
+                        <strong>Primeira Instalação</strong><br>
+                        A interface <strong>wg0</strong> ainda não está configurada neste servidor. Preencha os dados abaixo para gerar as chaves e criar a interface.
+                    </div>
+
+                    <!-- Motor: action="?tab=status" e onsubmit original -->
+                    <form method="POST" action="?tab=status" onsubmit="return confirm('Criar interface wg0 com essa rede/porta?');">
+                        
+                        <!-- Motor: acao=create_server -->
+                        <input type="hidden" name="acao" value="create_server">
+                        
+                        <div class="field">
+                            <label class="label is-small">Porta de Escuta (ListenPort)</label>
+                            <div class="control has-icons-left">
+                                <!-- Motor: name="wg_port" -->
+                                <input class="input" type="number" name="wg_port" min="1" max="65535" value="51820" required>
+                                <span class="icon is-small is-left"><i class="fas fa-network-wired"></i></span>
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label class="label is-small">Rede (Address)</label>
+                            <div class="field has-addons">
+                                <div class="control is-expanded has-icons-left">
+                                    <!-- Motor: name="wg_network_v4" -->
+                                    <input class="input" type="text" name="wg_network_v4" value="10.66.66.1/24" required>
+                                    <span class="icon is-small is-left"><i class="fas fa-server"></i></span>
+                                </div>
+                                <div class="control">
+                                    <!-- Motor: Chamando o JS original sem mexer nele -->
+                                    <button class="button is-info is-light" type="button" onclick="wgRandomPrivate24();" title="Gerar Rede Aleatória">
+                                        <i class="bi bi-shuffle"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="field mt-5">
+                            <div class="control">
+                                <button type="submit" class="button is-success is-fullwidth">
+                                    <span class="icon"><i class="fas fa-plus-circle"></i></span>
+                                    <span>Criar Interface wg0</span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
                 <?php else: ?>
+                    <!-- CASO 3: TUDO OK (Mostra a Danger Zone) -->
                     
                     <!-- CORPO DO CARD 2: AQUI ENTRA A MÁGICA DO SEU CSS (.scroll-interno-card) -->
                     <div class="scroll-interno-card" style="display: flex; flex-direction: column;">
@@ -228,7 +277,7 @@ if (!$is_daemon_ok) {
                             </button>
                         </div>
 
-                        <!-- ESTADO 2: ZONA DE PERIGO (Fica contido pela mola. Se crescer muito, rola!) -->
+                        <!-- ESTADO 2: ZONA DE PERIGO -->
                         <div id="visao_perigo" style="display: none; flex-direction: column; animation: fadeIn 0.3s ease;">
                             
                             <div class="level is-mobile mb-3">
@@ -243,7 +292,7 @@ if (!$is_daemon_ok) {
                                 </div>
                             </div>
 
-                            <!-- LIGAR / DESLIGAR (Lado a lado) -->
+                            <!-- LIGAR / DESLIGAR -->
                             <div class="box is-shadowless mb-3" style="border: 1px solid #e2e8f0; padding: 0.75rem;">
                                 <p class="heading has-text-grey mb-2"><i class="bi bi-power"></i> Interface wg0</p>
                                 <div style="display: flex; gap: 0.5rem;">
@@ -265,7 +314,6 @@ if (!$is_daemon_ok) {
                                 <form method="post" action="?tab=status" onsubmit="return confirmReset();">
                                     <input type="hidden" name="acao" value="reset_server">
                                     
-                                    <!-- Campo de IP com botão de Sortear colado (has-addons) -->
                                     <div class="field has-addons mb-2">
                                         <div class="control is-expanded">
                                             <input class="input is-small" type="text" name="wg_network_v4_reset" value="<?php echo htmlspecialchars($current_network ?: '10.66.66.1/24'); ?>" required>

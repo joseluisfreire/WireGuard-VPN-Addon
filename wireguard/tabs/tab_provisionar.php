@@ -41,7 +41,7 @@
                     <!-- OPÇÃO 1: SEQUENCIAL -->
                     <label style="cursor: pointer; padding: 0.5rem 0.8rem; border-radius: 8px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.15); transition: transform 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 140px;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                         <div style="display: flex; align-items: center; margin-bottom: 6px; color: white; font-weight: 700; font-size: 0.85rem;">
-                            <input type="radio" name="alloc_mode" value="seq" checked style="margin-right: 6px; transform: scale(1.2);"> Sequencial
+                            <input type="radio" name="alloc_mode" value="seq" required style="margin-right: 6px; transform: scale(1.2);"> Sequencial
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px; opacity: 0.95;">
                             <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
@@ -64,7 +64,7 @@
                     <!-- OPÇÃO 2: ALEATÓRIO -->
                     <label style="cursor: pointer; padding: 0.5rem 0.8rem; border-radius: 8px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.15); transition: transform 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 140px;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
                         <div style="display: flex; align-items: center; margin-bottom: 6px; color: white; font-weight: 700; font-size: 0.85rem;">
-                            <input type="radio" name="alloc_mode" value="rand" style="margin-right: 6px; transform: scale(1.2);"> Aleatório
+                            <input type="radio" name="alloc_mode" value="rand" required style="margin-right: 6px; transform: scale(1.2);"> Aleatório
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px; opacity: 0.95;">
                             <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
@@ -100,7 +100,7 @@
                 <div class="column is-6">
                     <label class="box" style="height: 100%; border: 2px solid #bbf7d0; border-left: 8px solid #22c55e; background: #f0fdf4; cursor: pointer; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(34, 197, 94, 0.1);">
                         <div class="is-flex is-align-items-center mb-3">
-                            <input type="radio" name="atualizar_ip_nas" value="1" checked style="transform: scale(1.5); margin-right: 15px;">
+                            <input type="radio" name="atualizar_ip_nas" value="1" required style="transform: scale(1.5); margin-right: 15px;">
                             <h3 class="title is-5 mb-0" style="color: #166534; display: flex; align-items: center;">
                                 <i class="bi bi-check-circle-fill" style="margin-right: 8px;"></i>
                                 Integração Direta<span class="tag is-success is-light ml-2" style="font-weight: 700; border: 1px solid #bbf7d0; font-size: 0.9rem;">Oficial</span>
@@ -124,7 +124,7 @@
                 <div class="column is-6">
                     <label class="box" style="height: 100%; border: 2px solid #fef08a; border-left: 8px solid #eab308; background: #fefce8; cursor: pointer; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(234, 179, 8, 0.1);">
                         <div class="is-flex is-align-items-center mb-3">
-                            <input type="radio" name="atualizar_ip_nas" value="0" style="transform: scale(1.5); margin-right: 15px;">
+                            <input type="radio" name="atualizar_ip_nas" value="0" required style="transform: scale(1.5); margin-right: 15px;">
                             <h3 class="title is-5 mb-0" style="color: #854d0e; display: flex; align-items: center;">
                                 <i class="bi bi-diagram-2" style="margin-right: 8px;"></i>
                                 Migração 
@@ -211,7 +211,7 @@
                             <!-- 4. IP DO SISTEMA (MK-AUTH) -->
                             <td class="is-vcentered has-text-centered">
                                 <?php if (!empty($ip_mk_atual)): ?>
-                                    <code><?= htmlspecialchars($ip_mk_atual) ?></code>
+                                    <code id="ip_mk_<?= $row['id_nas'] ?>" style="transition: all 0.3s ease;"><?= htmlspecialchars($ip_mk_atual) ?></code>
                                 <?php else: ?>
                                     <span class="tag is-light" title="Sem IP principal definido">Sem IP</span>
                                 <?php endif; ?>
@@ -220,7 +220,7 @@
                             <!-- 5. IP FALLBACK -->
                             <td class="is-vcentered has-text-centered">
                                 <?php if($has_ip): ?>
-                                    <code><?= htmlspecialchars($row['ipfall']) ?></code>
+                                    <code id="ip_fall_<?= $row['id_nas'] ?>" style="transition: all 0.3s ease;"><?= htmlspecialchars($row['ipfall']) ?></code>
                                 <?php else: ?>
                                     <span class="tag is-danger is-light" title="IP Fallback é necessário para que o OTP funcione corretamente em um cenário de primeira instalação."><i class="bi bi-exclamation-circle mr-1"></i> Faltando</span>
                                 <?php endif; ?>
@@ -254,12 +254,9 @@
 							</td>
 
                             <!-- 8. STATUS OTP (SSH) -->
-                            <td class="is-vcentered has-text-centered cell-ssh-status" data-id="<?= $row['id_nas'] ?>">
+                            <td class="is-vcentered has-text-centered cell-ssh-status" id="status_ssh_<?= $row['id_nas'] ?>" data-id="<?= $row['id_nas'] ?>">
                                 <?php if ($otp_pronto): ?>
-                                    <button type="button" class="button is-small is-light is-info" onclick="testarConexaoSsh(this, <?= $row['id_nas'] ?>)" style="font-weight: 600; transition: all 0.2s;">
-                                        <span class="icon is-small"><i class="bi bi-terminal-fill"></i></span>
-                                        <span>Testar SSH</span>
-                                    </button>
+                                    <span class="tag is-light" style="font-weight: 600; color: #64748b;"><i class="bi bi-hourglass mr-1"></i> Pendente</span>
                                 <?php else: ?>
                                     <span class="tag is-danger is-light" title="Faltam credenciais (IP ou Senha)"><i class="bi bi-x-circle mr-1"></i> Inválido</span>
                                 <?php endif; ?>
@@ -280,15 +277,15 @@
 					</button>
 				</p>
 				<p class="control">
-					<button type="button" class="button is-link" onclick="submitOtpEmMassa()" style="font-weight: 600;" title="Conectar via SSH e configurar a VPN">
-						<span class="icon is-small"><i class="bi bi-magic"></i></span>
-						<span>OTP (SSH)</span>
+					<button type="button" class="button is-info is-light" onclick="testarSshEmMassa()" style="font-weight: 600; border: 1px solid #0ea5e9;" title="Testar conexão SSH dos ramais selecionados">
+						<span class="icon is-small"><i class="bi bi-terminal-fill"></i></span>
+						<span>Testar SSH em Lote</span>
 					</button>
 				</p>
 			</div>
 			
 			<div class="is-size-7 has-text-grey mt-2">
-				<i class="bi bi-info-circle"></i> <strong>Provisionar Rb:</strong> Cria o peer WireGuard VPN para RouterBoard no servidor MK-Auth. | <strong>OTP:</strong> Conecta via SSH e aplica as configurações diretamente nas RouterBoards.
+				<i class="bi bi-info-circle"></i> <strong>Provisionar Rb:</strong> Cria o peer WireGuard VPN para RouterBoard no servidor MK-Auth. | <strong>Testar SSH:</strong> Valida as credenciais simulando conexão com os IPs informados.
 			</div>
 		</div>
     </form>

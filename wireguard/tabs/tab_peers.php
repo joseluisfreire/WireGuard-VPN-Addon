@@ -160,7 +160,9 @@
 					</tr>
 				</thead>
 				<tbody>
-				<?php if (!$clients): ?>
+				<?php 
+				$tem_paralelo = false; 
+				if (!$clients): ?>
 					<tr>
 						<td colspan="11" class="has-text-centered has-text-grey" style="padding: 2rem;">
 							Nenhum peer retornado pelo socket.
@@ -181,6 +183,7 @@
 							
 							if ($ip_wg_limpo !== $ip_mk_atual && $ip_mk_atual !== '') {
 								$is_maquete = true;
+								$tem_paralelo = true;
 							}
 						}
 						
@@ -381,6 +384,8 @@
 					</a>
 				</div>
 
+				  <!-- SÓ APARECE SE TIVER PELO MENOS UM PEER EM PARALELO -->
+				  <?php if ($tem_paralelo): ?>
 				  <div class="level-item">
 					<a href="#" title="Efetivar Rota (Atualizar IP dos NAS selecionados no MK-Auth)" onclick="if(confirm('Tem certeza que deseja EFETIVAR os peers selecionados?\nIsso atualizará o IP no cadastro do MK-Auth, fazendo a comunicação ocorrer exclusivamente pelo WireGuard.')) { return submitPeersBulk('efetivar_ip'); } return false;">
 					  <span class="icon" style="color: #8b5cf6;">
@@ -388,6 +393,7 @@
 					  </span>
 					</a>
 				  </div>
+				  <?php endif; ?>
 				  
 				  <div class="level-item">
 					<a href="#" title="Habilitar peers selecionados" onclick="return submitPeersBulk('enable');">

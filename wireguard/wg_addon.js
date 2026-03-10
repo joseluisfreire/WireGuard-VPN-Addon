@@ -392,6 +392,14 @@ function toggleSenhaSpan(spanId, btnElement) {
 // Botão 1: Provisionar no Servidor (Trava dura em duplicados)
 function submitProvisionarRamais() {
     var form = document.getElementById('form_provisionar');
+    
+    // 🛑 NOVA TRAVA DE SEGURANÇA AQUI:
+    // Pede ao navegador para verificar se os campos obrigatórios (required) estão preenchidos.
+    // Se faltar algum botão de rádio, o reportValidity() retorna falso e mostra a mensagem "Selecione uma opção".
+    if (!form.reportValidity()) {
+        return false; // Trava a execução, obriga o cara a ler os cards e escolher.
+    }
+
     var selecionados = form.querySelectorAll('.ramal-checkbox:checked');
     
     if (selecionados.length === 0) {
@@ -421,165 +429,82 @@ function submitProvisionarRamais() {
     return false;
 }
 
-// Botão 2: A Varinha Mágica (Auto OTP - One Touch Provisioning)
-    function submitOtpEmMassa() {
+    // ==============================================================
+    // TESTE DE SSH EM MASSA COM HIGHLIGHT DE IP
+    // ==============================================================
+    async function testarSshEmMassa() {
         var form = document.getElementById('form_provisionar');
         var selecionados = form.querySelectorAll('.ramal-checkbox:checked');
         
         if (selecionados.length === 0) {
-            alert('Selecione ao menos um ramal para executar o OTP.');
-            return false;
+            alert('Selecione ao menos um ramal para testar o SSH.');
+            return;
         }
     
-        var naoElegiveis = 0;
-        var rbsValidas = [];
-        
-        selecionados.forEach(function(cb) {
-            if (cb.getAttribute('data-otp') === '0') {
-                naoElegiveis++;
-            } else {
-                // Tenta achar o nome na tabela para ficar bonito no log
-                let row = cb.closest('tr');
-                let tdNome = row ? row.querySelector('td:nth-child(2)') : null;
-                let nomeRb = tdNome ? tdNome.innerText.trim() : 'NAS ID ' + cb.value;
-                rbsValidas.push({ id_nas: cb.value, nome: nomeRb });
-            }
-        });
-    
-        if (naoElegiveis > 0) {
-            alert('❌ ERRO: Você selecionou ' + naoElegiveis + ' ramal(is) que NÃO SÃO ELEGÍVEIS para o OTP (Carinha Triste).\n\nEles estão sem IP Fallback ou Senha no cadastro. Preencha esses dados no MK-Auth antes de tentar a configuração automática via SSH.');
-            return false;
-        }
-    
-        if (!confirm('✨ Executar o Auto OTP (One Touch Provisioning) nas RouterBoards selecionadas?\n\nO sistema irá se conectar via SSH a cada RB para aplicar as configurações do WireGuard automaticamente.')) {
-            return false;
-        }
-    
-        abrirModalOtp(rbsValidas);
-        return false;
-    }
+        // Passa por cada caixinha selecionada
+        for (let cb of selecionados) {
+            if (cb.getAttribute('data-otp') === '0') continue; // Pula quem tá "Inválido"
+            
+            let idNas = cb.value;
+            let tdStatus = document.getElementById('status_ssh_' + idNas);
+            
+            if (!tdStatus) continue;
 
-    // A Mágica do AJAX disparando em fila Indiana
-    async function abrirModalOtp(rbs) {
-        const modal = document.getElementById('modal_otp_progress');
-        const container = document.getElementById('otp_log_container');
-        const btnFechar = document.getElementById('btn_fechar_otp');
-        
-        if(!modal) return alert("HTML do modal não encontrado!");
-        
-        modal.classList.add('is-active');
-        container.innerHTML = `<div style="color: #38bdf8; font-weight: bold;">⚡ Iniciando fila de injeção em ${rbs.length} RouterBoard(s)...</div><br>`;
-        btnFechar.disabled = true;
-        btnFechar.innerText = "Aguarde o Processo...";
-        
-        for(let i = 0; i < rbs.length; i++) {
-            let rb = rbs[i];
-            
-            let logLine = document.createElement('div');
-            logLine.innerHTML = `<span style="color:#94a3b8;">[${i+1}/${rbs.length}]</span> Processando <b>${rb.nome}</b>... <i class="bi bi-hourglass-split" style="animation: spin 2s linear infinite; color: #facc15;"></i>`;
-            container.appendChild(logLine);
-            container.scrollTop = container.scrollHeight;
-            
-            let formData = new FormData();
-            formData.append('acao', 'executar_otp_unitario');
-            formData.append('id_nas', rb.id_nas);
+            // Coloca o status "Testando..." animado
+            tdStatus.innerHTML = '<span class="tag is-warning is-light" style="font-weight:bold;"><i class="bi bi-arrow-repeat mr-1" style="animation: spin 2s linear infinite;"></i> Testando...</span>';
             
             try {
-                let res = await fetch(window.location.href, { method: 'POST', body: formData });
-                let data = await res.json();
-                
+                let formData = new FormData();
+                formData.append('acao', 'testar_ssh_otp');
+                formData.append('id_nas', idNas);
+        
+                let response = await fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData
+                });
+                let data = await response.json(); 
+    
                 if(data.status === 'ok') {
-                    // Mantendo a essência "Terminal Escuro"
-                    logLine.innerHTML = `
-                        <div style="margin-bottom: 15px; border-left: 2px solid #4ade80;">
-                            <span style="color:#4ade80; font-weight: bold; margin-left: 10px;">[${i+1}/${rbs.length}] ✅ SUCESSO NO NAS: ${rb.nome}</span>
-                            ${data.msg_html}
-                        </div>`;
+                    // Sucesso Total!
+                    let icone_metodo = data.metodo === 'Chave SSH' ? '<i class="bi bi-key-fill mr-1"></i>' : '<i class="bi bi-asterisk mr-1"></i>';
+                    
+                    tdStatus.innerHTML = `
+                        <span class="tag" style="background-color: #4ade80; color: #000; border: 1px solid #22c55e; font-weight: 600;" title="Logado como '${data.user}' no IP ${data.ip} usando ${data.metodo}">
+                            ${icone_metodo} Conectado
+                        </span>`;
+                    
+                    // MÁGICA DO MARCA-TEXTO: Compara o IP usado com o da tela
+                    let codeMk = document.getElementById('ip_mk_' + idNas);
+                    let codeFall = document.getElementById('ip_fall_' + idNas);
+                    
+                    if (codeMk && codeMk.innerText.trim() === data.ip) {
+                        aplicarMarcaTexto(codeMk);
+                    } else if (codeFall && codeFall.innerText.trim() === data.ip) {
+                        aplicarMarcaTexto(codeFall);
+                    }
                 } else {
-                    logLine.innerHTML = `<span style="color:#f87171;">[${i+1}/${rbs.length}] ❌ Falha em <b>${rb.nome}</b>: ${data.msg}</span>`;
-                    console.warn("Log SSH Falha:", data.debug);
+                    console.warn("Motivo da falha SSH (Log do PHP):", data.debug);
+                    tdStatus.innerHTML = `
+                        <span class="tag is-danger is-light" style="font-weight: 600; border: 1px solid #f87171;" title="${data.msg}">
+                            <i class="bi bi-x-circle-fill mr-1"></i> Falhou
+                        </span>`;
                 }
-            } catch(e) {
-                logLine.innerHTML = `<span style="color:#f87171;">[${i+1}/${rbs.length}] ❌ Erro Crítico: Falha na requisição ao servidor.</span>`;
+            } catch (error) {
+                console.error("Erro de Rede ou JS:", error);
+                tdStatus.innerHTML = '<span class="tag is-danger"><i class="bi bi-wifi-off mr-1"></i> Erro de Rede</span>';
             }
-            container.scrollTop = container.scrollHeight;
         }
-        
-        container.innerHTML += `<br><div style="color: #38bdf8; font-weight: bold;">✨ Processo Finalizado!</div>`;
-        btnFechar.disabled = false;
-        btnFechar.innerText = "Concluir e Atualizar Tela";
-        
-        btnFechar.onclick = function() { window.location.reload(); };
     }
     
-    function fecharModalOtp() {
-        document.getElementById('modal_otp_progress').classList.remove('is-active');
-    }
-// Função Mágica que chama o backend PHP para validar ssh da MikroTik (Monstro 2.0)
-function testarConexaoSsh(btnElement, id_nas, event = null) {
-    // Impede que o botão tente enviar um formulário e recarregar a página no 1º clique
-    if (event) {
-        event.preventDefault();
-    }
-
-    // Busca a célula de status
-    let cell = btnElement.closest('.cell-ssh-status');
-    
-    // Trava de segurança caso o HTML mude e ele não ache a célula
-    if (!cell) {
-        console.error("Erro: Não achei a classe .cell-ssh-status perto do botão clicado!");
-        return;
-    }
-
-    // Muda o visual do botão para "Testando..." e desativa o botão para evitar duplos cliques
-    btnElement.disabled = true;
-    cell.innerHTML = `
-        <span class="tag is-warning is-light" style="font-weight: 600;">
-            <i class="bi bi-hourglass-split mr-1" style="animation: spin 2s linear infinite;"></i> Testando...
-        </span>`;
-
-    // Monta o pacote de dados
-    let formData = new FormData();
-    formData.append('acao', 'testar_ssh_otp');
-    formData.append('id_nas', id_nas);
-
-    // Dispara a requisição em background
-    fetch(window.location.href, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if(data.status === 'ok') {
-            // Sucesso Total! RB respondeu. Informamos IP e Método!
-            let icone_metodo = data.metodo === 'Chave SSH' ? '<i class="bi bi-key-fill mr-1"></i>' : '<i class="bi bi-asterisk mr-1"></i>';
-            cell.innerHTML = `
-                <span class="tag" style="background-color: #4ade80; color: #000; border: 1px solid #22c55e; font-weight: 600;" title="Logado como '${data.user}' no IP ${data.ip} usando ${data.metodo}">
-                    ${icone_metodo} Online (${data.metodo})
-                </span>`;
-        } else {
-            // AQUI ESTÁ A MÁGICA: Joga o log bruto do PHP no console do navegador!
-            console.warn("Motivo da falha SSH (Log do PHP):", data.debug);
-            
-            // Falhou
-            cell.innerHTML = `
-                <span class="tag is-danger is-light" style="font-weight: 600; border: 1px solid #f87171;" title="${data.msg}">
-                    <i class="bi bi-x-circle-fill mr-1"></i> Falhou
-                </span>
-                <button class="button is-small is-ghost px-1 py-0" style="height: auto; text-decoration: none;" onclick="testarConexaoSsh(this, ${id_nas}, event)" title="Tentar Novamente">
-                    <i class="bi bi-arrow-clockwise text-grey"></i>
-                </button>`;
+    // Funçãozinha para pintar o IP que funcionou
+    function aplicarMarcaTexto(elemento) {
+        elemento.style.backgroundColor = '#dcfce7'; 
+        elemento.style.color = '#166534'; 
+        elemento.style.border = '1px solid #22c55e';
+        if (!elemento.innerHTML.includes('bi-check-circle-fill')) {
+            elemento.innerHTML += ' <i class="bi bi-check-circle-fill" style="color:#22c55e; font-size: 0.85rem; margin-left: 4px;"></i>';
         }
-    })
-    .catch(error => {
-        console.error("Erro de Rede ou JS:", error);
-        cell.innerHTML = `
-            <span class="tag is-danger" style="font-weight: 600;">Erro JS</span>
-            <button class="button is-small is-ghost px-1 py-0" style="height: auto; text-decoration: none;" onclick="testarConexaoSsh(this, ${id_nas}, event)" title="Tentar Novamente">
-                <i class="bi bi-arrow-clockwise text-grey"></i>
-            </button>`;
-    });
-}
+    }
 
 function submitOtpFromPeers(event) {
     // Bloqueia o recarregamento fantasma da página

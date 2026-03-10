@@ -102,16 +102,66 @@ if (!$is_daemon_ok) {
                         </div>
                     </div>
 
-                    <!-- ENDPOINT -->
-                    <?php 
-                    $ip_forcado = '';
-                    $rsCfg = $mysqli->query("SELECT endpoint FROM wg_ramais ORDER BY id ASC LIMIT 1");
-                    if ($rsCfg && $rowCfg = $rsCfg->fetch_assoc()) {
-                        $ip_forcado = trim($rowCfg['endpoint'] ?? '');
-                    }
-                    $ip_detectado = $d['public_ip'] ?? 'N/A';
-                    $ip_mostrar = ($ip_forcado !== '') ? $ip_forcado : $ip_detectado;
-                    ?>
+                        <!-- ENDPOINT -->
+                        <?php 
+                        $ip_forcado = '';
+                        $rsCfg = $mysqli->query("SELECT endpoint FROM wg_ramais ORDER BY id ASC LIMIT 1");
+                        if ($rsCfg && $rowCfg = $rsCfg->fetch_assoc()) {
+                            $ip_forcado = trim($rowCfg['endpoint'] ?? '');
+                        }
+                        $ip_detectado = $d['public_ip'] ?? 'N/A';
+                        $ip_mostrar = ($ip_forcado !== '') ? $ip_forcado : $ip_detectado;
+
+                        // =========================================================
+                        // 🛡️ WATCHDOG DE ENDPOINT (Atualização Automática de IP e PORTA)
+                        // =========================================================
+                        
+                        // 1. Descobre a porta atual do Daemon (se não achar, assume 51820)
+                        $porta_mostrar = isset($d['port']) ? (int)$d['port'] : 51820;
+                        
+                        if ($ip_mostrar !== 'N/A' && !empty($ip_mostrar)) {
+                            
+                            // Monta o combo perfeito: IP_ATUAL:PORTA_ATUAL
+                            $endpoint_completo_atual = $ip_mostrar . ':' . $porta_mostrar;
+                            
+                            // Espia 1 ramal para ver se o Endpoint do banco está defasado
+                            $rsCheck = $mysqli->query("SELECT id, config_text FROM wg_ramais WHERE config_text IS NOT NULL AND config_text != '' LIMIT 1");
+                            
+                            if ($rsCheck && $rowCheck = $rsCheck->fetch_assoc()) {
+                                $precisa_atualizar = false;
+                                
+                                // O Regex [^\s]+ pega absolutamente tudo depois do "=" (O IP/DNS e a Porta juntos)
+                                if (preg_match('/Endpoint\s*=\s*([^\s]+)/i', $rowCheck['config_text'], $matches)) {
+                                    $endpoint_banco = trim($matches[1]); // Ex: 192.168.0.202:51821
+                                    
+                                    // Se a string "IP:PORTA" do banco for diferente da string da tela, dispara!
+                                    if ($endpoint_banco !== $endpoint_completo_atual) {
+                                        $precisa_atualizar = true;
+                                    }
+                                }
+                                
+                                // 2. Varre a tabela e atualiza os textos de todos os clientes
+                                if ($precisa_atualizar) {
+                                    $rsAll = $mysqli->query("SELECT id, config_text FROM wg_ramais WHERE config_text IS NOT NULL AND config_text != ''");
+                                    while ($rowAll = $rsAll->fetch_assoc()) {
+                                        $id_up = $rowAll['id'];
+                                        
+                                        // Substitui o valor velho inteiro pelo novo combo IP:PORTA
+                                        $txt_conf = preg_replace('/(Endpoint\s*=\s*)[^\s]+/i', '${1}' . $endpoint_completo_atual, $rowAll['config_text']);
+                                        
+                                        // Atualiza no banco
+                                        $stmt = $mysqli->prepare("UPDATE wg_ramais SET config_text = ? WHERE id = ?");
+                                        if ($stmt) {
+                                            $stmt->bind_param("si", $txt_conf, $id_up);
+                                            $stmt->execute();
+                                            $stmt->close();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // =========================================================
+                        ?>
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0; border-bottom: 1px solid rgba(0,0,0,0.06);">
                         <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Endpoint:</span>
                         <div style="display: flex; align-items: center; gap: 0.4rem;">
@@ -148,7 +198,7 @@ if (!$is_daemon_ok) {
                     <!-- NETWORK -->
                     <?php if (!empty($d['wg_address'])): ?>
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.3rem 0;">
-                        <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Network:</span>
+                        <span style="font-size: 0.85rem; font-weight: 600; color: #1e293b;">Endereço Ipv4:</span>
                         <div style="display: flex; align-items: center; gap: 0.4rem;">
                             <span style="font-size: 0.85rem; font-family: monospace; color: #0f172a; font-weight: 700;"><?php echo htmlspecialchars($d['wg_address']); ?></span>
                             <a href="#" onclick="copiarTexto('<?php echo htmlspecialchars($d['wg_address']); ?>'); return false;" style="color: #64748b; font-size: 0.9rem;" title="Copiar Network">

@@ -57,47 +57,70 @@
             </p>
             <button class="delete" aria-label="close" onclick="document.getElementById('modal_nat').classList.remove('is-active')"></button>
         </header>
-        <section class="modal-card-body">
-            <div class="notification is-warning is-light" style="font-size: 0.85rem; padding: 1rem;">
-                <i class="bi bi-exclamation-triangle-fill"></i> 
-                <strong>Aviso:</strong> O Daemon detectou o IP <code><?php echo htmlspecialchars($ip_detectado); ?></code> automaticamente.<br><br>
-                Só force um IP/Domínio manual se o seu servidor estiver atrás de um firewall (NAT/CGNAT) e você tiver uma regra de encaminhamento válida.
-            </div>
+            <section class="modal-card-body">
+                <div class="notification is-warning is-light" style="font-size: 0.85rem; padding: 1rem;">
+                    <i class="bi bi-exclamation-triangle-fill"></i> 
+                    <strong>Aviso:</strong> O Daemon detectou o IP Público<code><?php echo htmlspecialchars($ip_detectado); ?></code> automaticamente.<br><br>
+                    Só altere esse campo caso o ip público de entrada mapaedo para o seu servidor MK-Auth seja diferente do endereço público de saída detectado pelo Daemon.
+                </div>
 
-            <form method="post" action="?tab=status">
-                <input type="hidden" name="acao" value="salvar_nat">
-                
-                <div class="field">
-                    <label class="label is-small">IP Fixo ou DDNS (Opcional)</label>
+                <?php
+                // Pega o IP local principal da máquina
+                $ip_local_detectado = explode(" ", trim(shell_exec("hostname -I")))[0];
+
+                // Fallback caso dê algum erro no shell
+                if(empty($ip_local_detectado)) {
+                    $ip_local_detectado = $_SERVER['SERVER_ADDR'] ?? '192.168.x.x'; 
+                }
+                ?>
+                <!-- Bloco Visual do IP Local (Sugestão Clicável) -->
+                <div style="margin-bottom: 1.5rem; font-size: 0.85rem; color: #64748b; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px dashed #cbd5e1; display: flex; align-items: center; gap: 8px;">
+                    <i class="bi bi-diagram-3-fill" style="color: #0284c7; font-size: 1rem;"></i> 
+                    <span>Interface eth0 endereço ip</span>
                     
-                    <!-- AQUI ENTRA A MÁGICA DO HAS-ADDONS -->
-                    <div class="field has-addons mb-1">
-                        <div class="control is-expanded has-icons-left">
-                            <!-- Adicionei o id="ip_nat_input" para o botão conseguir esvaziar ele -->
-                            <input class="input" type="text" id="ip_nat_input" name="ip_nat" placeholder="Ex: 200.20.20.5 ou vpn.provedor.com" value="<?php echo htmlspecialchars($ip_forcado); ?>">
-                            <span class="icon is-small is-left"><i class="bi bi-hdd-network"></i></span>
+                    <!-- Link clicável (Joga pro id="ip_nat_input" que você já criou!) -->
+                    <span onclick="document.getElementById('ip_nat_input').value='<?php echo $ip_local_detectado; ?>'" 
+                          style="font-weight: 700; color: #0369a1; background: #e0f2fe; padding: 3px 8px; border-radius: 4px; cursor: pointer; transition: all 0.2s ease;"
+                          onmouseover="this.style.background='#bae6fd'; this.style.transform='scale(1.02)';" 
+                          onmouseout="this.style.background='#e0f2fe'; this.style.transform='scale(1)';">
+                        <?php echo $ip_local_detectado; ?> <i class="bi bi-hand-index-thumb" style="font-size: 0.8rem; margin-left: 2px;"></i>
+                    </span>
+                </div>
+    
+                <form method="post" action="?tab=status">
+                    <input type="hidden" name="acao" value="salvar_nat">
+                    
+                    <div class="field">
+                        <label class="label is-small">IP Fixo manual (.rsc .conf ENDPOINT)</label>
+                        
+                        <!-- AQUI ENTRA A MÁGICA DO HAS-ADDONS -->
+                        <div class="field has-addons mb-1">
+                            <div class="control is-expanded has-icons-left">
+                                <!-- Adicionei o id="ip_nat_input" para o botão conseguir esvaziar ele -->
+                                <input class="input" type="text" id="ip_nat_input" name="ip_nat" placeholder="Ex: 200.20.20.5 ou vpn.provedor.com" value="<?php echo htmlspecialchars($ip_forcado); ?>">
+                                <span class="icon is-small is-left"><i class="bi bi-hdd-network"></i></span>
+                            </div>
+                            <div class="control">
+                                <!-- O Botão de Limpar colado no campo -->
+                                <button class="button is-warning is-light" type="button" onclick="document.getElementById('ip_nat_input').value = '';" title="Limpar para Voltar ao Automático" style="border-radius: 0 4px 4px 0; border: 1px solid #dbdbdb; border-left: none;">
+                                    <span class="icon is-small"><i class="bi bi-eraser-fill" style="color: #d97706;"></i></span>
+                                    <span class="is-hidden-mobile has-text-weight-bold" style="font-size: 0.85rem; color: #b45309;">Limpar (Auto)</span>
+                                </button>
+                            </div>
                         </div>
-                        <div class="control">
-                            <!-- O Botão de Limpar colado no campo -->
-                            <button class="button is-warning is-light" type="button" onclick="document.getElementById('ip_nat_input').value = '';" title="Limpar para Voltar ao Automático" style="border-radius: 0 4px 4px 0; border: 1px solid #dbdbdb; border-left: none;">
-                                <span class="icon is-small"><i class="bi bi-eraser-fill" style="color: #d97706;"></i></span>
-                                <span class="is-hidden-mobile has-text-weight-bold" style="font-size: 0.85rem; color: #b45309;">Limpar (Auto)</span>
-                            </button>
-                        </div>
+                        
+                        <p class="help has-text-grey">
+                            Deixe vazio e clique em salvar para retornar à <strong>Detecção Automática</strong>.
+                        </p>
                     </div>
                     
-                    <p class="help has-text-grey">
-                        Deixe vazio e clique em salvar para retornar à <strong>Detecção Automática</strong>.
-                    </p>
-                </div>
-                
-                <div class="field mt-4">
-                    <button type="submit" class="button is-info is-fullwidth" style="font-weight: 600;">
-                        <i class="bi bi-save mr-2"></i> Salvar Configuração
-                    </button>
-                </div>
-            </form>
-        </section>
+                    <div class="field mt-4">
+                        <button type="submit" class="button is-info is-fullwidth" style="font-weight: 600;">
+                            <i class="bi bi-save mr-2"></i> Salvar Configuração
+                        </button>
+                    </div>
+                </form>
+            </section>
     </div>
 </div>
 <!-- MODAL OTP PROGRESSO -->

@@ -433,8 +433,9 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // 4. Snapshot do estado atual (se houver algo)
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        wg_snapshot_interface($mysqli, $socketPath, 'before_import_json');
-
+		if (!empty($interface_configurada)) {
+			wg_snapshot_interface($mysqli, $socketPath, 'before_import_json');
+		}
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         // 5. Contar peers antes
         // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1041,9 +1042,25 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // ⚡ SNAPSHOT ANTES
     // ------------------------------------------------------------------
     if ($acao === 'criar_peer') {
-        $id_nas    = isset($_POST['id_nas']) ? (int)$_POST['id_nas'] : 0;
-        $peer_name = isset($_POST['peer_name']) ? trim($_POST['peer_name']) : '';
-        $address   = isset($_POST['address'])   ? trim($_POST['address'])   : '';
+        $id_nas      = isset($_POST['id_nas']) ? (int)$_POST['id_nas'] : 0;
+        $peer_name   = isset($_POST['peer_name']) ? trim($_POST['peer_name']) : '';
+        $address_raw = isset($_POST['address']) ? trim($_POST['address']) : '';
+        
+        $address = '';
+        if ($address_raw !== '') {
+            // 🛑 A BRONCA DIDÁTICA: Se tem barra e NÃO é /32, bate no peito e devolve o erro!
+            if (strpos($address_raw, '/') !== false && substr(trim($address_raw), -3) !== '/32') {
+                $ip_sugerido = explode('/', $address_raw)[0] . '/32';
+				$_SESSION['wg_msg_erro'] = "ATENÇÃO: O WireGuard exige máscara /32 para clientes no servidor (Roteamento por Chave Criptográfica). Usar máscaras como /24 causará sequestro de tráfego na rede. Por favor, utilize {$ip_sugerido}";
+                header('Location: ?tab=criar');
+                exit;
+            }
+            
+            // Se chegou aqui, ou ele digitou só o IP, ou digitou certo com /32. 
+            $ip_only = explode('/', $address_raw)[0];
+            $address = $ip_only . '/32';
+        }
+
         $msg_erro  = '';
 
         // ==========================================
@@ -1091,7 +1108,8 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Verifica Nome ou IP duplicado
         if ($msg_erro === '') {
-            $stmt = $mysqli->prepare("SELECT nome, ip_wg FROM wg_ramais WHERE nome = ? OR ip_wg = ? LIMIT 1");
+            // 🛡️ CORREÇÃO CRÍTICA DE TABELA: Trocado 'nome' por 'peer_name'
+            $stmt = $mysqli->prepare("SELECT peer_name, ip_wg FROM wg_ramais WHERE peer_name = ? OR ip_wg = ? LIMIT 1");
             if ($stmt) {
                 $stmt->bind_param('ss', $peer_name, $address);
                 if (!$stmt->execute()) {
@@ -1100,7 +1118,7 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     $result = $stmt->get_result();
                     if ($result->num_rows > 0) {
                         $row = $result->fetch_assoc();
-                        if (strcasecmp($row['nome'], $peer_name) === 0) {
+                        if (strcasecmp($row['peer_name'], $peer_name) === 0) {
                             $msg_erro .= "Já existe uma conexão com o nome '{$peer_name}'. ";
                         } else {
                             $msg_erro .= "O IP '{$address}' já está sendo usado por outro servidor. ";
@@ -1108,10 +1126,13 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 $stmt->close();
+            } else {
+                // 🛡️ CORREÇÃO DE FALHA SILENCIOSA: Se o prepare falhar, IMPEDE de mandar pro Daemon!
+                $msg_erro .= 'Erro interno ao consultar o banco (validação de peer falhou): ' . $mysqli->error;
             }
         }
 
-        // Se acumulou qualquer erro, aborta e volta pra tela de criação
+        // Se acumulou qualquer erro, aborta e volta pra tela de criação ANTES de chamar o Daemon
         if ($msg_erro !== '') {
             $_SESSION['wg_msg_erro'] = trim($msg_erro);
             header('Location: ?tab=criar');
@@ -1243,9 +1264,23 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 wg_snapshot_interface($mysqli, $socketPath, 'before_update_address');
 
                 foreach ($peer_ids as $id_peer) {
-                    $address = isset($_POST['address_inline'][$id_peer])
+                    // Pega o dado cru enviado pelo formulário inline
+                    $address_raw = isset($_POST['address_inline'][$id_peer])
                         ? trim($_POST['address_inline'][$id_peer])
                         : '';
+
+                    $address = '';
+                    if ($address_raw !== '') {
+                        // 🛑 A BRONCA DIDÁTICA NA EDIÇÃO
+                        if (strpos($address_raw, '/') !== false && substr(trim($address_raw), -3) !== '/32') {
+                            $msg_erro .= "⚠️ <b>Peer ID {$id_peer}:</b> O WireGuard funciona apenas com IPs exclusivos por peer (/32). ";
+                            continue; // Pula esse peer e vai pro próximo sem salvar
+                        }
+
+                        // Força a máscara correta
+                        $ip_only = explode('/', $address_raw)[0];
+                        $address = $ip_only . '/32';
+                    }
 
                     if ($address === '') {
                         $msg_erro .= "Endereço vazio para o peer ID {$id_peer}. ";

@@ -14,7 +14,7 @@
 // ========================================
 
 // Lógica binária simples para saber se o Go respondeu e se a wg0 tá rodando
-$is_daemon_ok = is_array($status_data) && (isset($status_data['ok']) || isset($status_data['data']));
+$is_daemon_ok = $daemon_ok;
 $is_iface_up  = $is_daemon_ok && !empty($status_data['data']['if_up']);
 
 if (!$is_daemon_ok) {
@@ -236,168 +236,278 @@ if (!$is_daemon_ok) {
         </div>
         </div> <!-- fim da coluna 1 -->
 
-        <!-- ========================================
-             COLUNA 2: PAINEL DE CONTROLE (is-4 = 33% da tela)
-             ======================================== -->
-        <div class="column is-4">
-            <div class="box" style="height: 100%; display: flex; flex-direction: column;">
-                
-                <!-- HEADER FIXO (Não entra na rolagem) -->
-                <div class="level is-mobile mb-4" style="border-bottom: 1px solid #f1f5f9; padding-bottom: 0.5rem; flex-shrink: 0;">
-                    <div class="level-left">
-                        <h2 class="title is-5 mb-0" style="color: #334155;">
+		<!-- ========================================
+			 COLUNA 2: PAINEL DE CONTROLE (is-4 = 33% da tela)
+			 ======================================== -->
+		<div class="column is-4">
+			<?php
+				$box_extra = '';
+				if (!$daemon_ok)                 $box_extra = 'box-border-danger';
+				elseif (!$interface_configurada) $box_extra = 'box-border-info';
+			?>
+			<div class="box <?php echo $box_extra; ?>" style="height: 100%; display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+
+				<?php if (!$daemon_ok): ?>
+					<!-- CASO 1: DAEMON OFFLINE -->
+					<div style="padding: 1.25rem;">
+						<h2 class="title is-5 mb-4" style="color: #334155;">
+							<span class="icon"><i class="bi bi-sliders"></i></span>
+							<span>Painel de Controle</span>
+						</h2>
+						<div class="notification is-danger">
+							<p><i class="bi bi-x-circle-fill"></i> Daemon Offline</p>
+						</div>
+					</div>
+
+				<?php elseif (!$interface_configurada): ?>
+                    <!-- CASO 2: PRIMEIRA INSTALAÇÃO -->
+                    <div style="padding: 1.25rem;">
+                        <h2 class="title is-5 mb-4" style="color: #334155;">
                             <span class="icon"><i class="bi bi-sliders"></i></span>
                             <span>Painel de Controle</span>
                         </h2>
-                    </div>
-                    <div class="level-right">
-                        <?php if ($interface_configurada && $daemon_ok): ?>
-                            <button class="button is-small is-light" type="button" onclick="document.getElementById('modal_wg_raw').classList.add('is-active');" title="Ver wg0.conf bruto">
-                                <span class="icon"><i class="bi bi-file-earmark-code"></i></span>
-                            </button>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
-                <?php if (!$daemon_ok): ?>
-                    <!-- CASO 1: DAEMON OFFLINE -->
-                    <div class="notification is-danger"><p><i class="bi bi-x-circle-fill"></i> Daemon Offline</p></div>
-
-                <?php elseif (!$interface_configurada): ?>
-                    <!-- CASO 2: PRIMEIRA INSTALAÇÃO (Motor Original / Visual Novo) -->
-                    <div class="notification is-info is-light is-size-7">
-                        <strong>Primeira Instalação</strong><br>
-                        A interface <strong>wg0</strong> ainda não está configurada neste servidor. Preencha os dados abaixo para gerar as chaves e criar a interface.
-                    </div>
-
-                    <!-- Motor: action="?tab=status" e onsubmit original -->
-                    <form method="POST" action="?tab=status" onsubmit="return confirm('Criar interface wg0 com essa rede/porta?');">
-                        
-                        <!-- Motor: acao=create_server -->
-                        <input type="hidden" name="acao" value="create_server">
-                        
-                        <div class="field">
-                            <label class="label is-small">Porta de Escuta (ListenPort)</label>
-                            <div class="control has-icons-left">
-                                <!-- Motor: name="wg_port" -->
-                                <input class="input" type="number" name="wg_port" min="1" max="65535" value="51820" required>
-                                <span class="icon is-small is-left"><i class="fas fa-network-wired"></i></span>
-                            </div>
+                        <div class="notification is-info is-light is-size-7">
+                            <strong>Primeira Instalação</strong><br>
+                            A interface <strong>wg0</strong> ainda não está configurada neste servidor. Preencha os dados abaixo para gerar as chaves e criar a interface.
                         </div>
-
-                        <div class="field">
-                            <label class="label is-small">Rede (Address)</label>
-                            <div class="field has-addons">
-                                <div class="control is-expanded has-icons-left">
-                                    <!-- Motor: name="wg_network_v4" -->
-                                    <input class="input" type="text" name="wg_network_v4" value="10.66.66.1/24" required>
-                                    <span class="icon is-small is-left"><i class="fas fa-server"></i></span>
+                        <form method="POST" action="?tab=status" onsubmit="return confirm('Criar interface wg0 com essa rede/porta?');">
+                            <input type="hidden" name="acao" value="create_server">
+                            <div class="field">
+                                <label class="label is-small">Porta de Escuta (ListenPort)</label>
+                                <div class="control has-icons-left">
+                                    <input class="input" type="number" name="wg_port" min="1" max="65535" value="51820" required>
+                                    <span class="icon is-small is-left"><i class="fas fa-network-wired"></i></span>
                                 </div>
+                            </div>
+                            <div class="field">
+                                <label class="label is-small">Rede (Address)</label>
+                                <div class="field has-addons">
+                                    <div class="control is-expanded has-icons-left">
+                                        <input class="input" type="text" name="wg_network_v4" value="10.66.66.1/24" required>
+                                        <span class="icon is-small is-left"><i class="fas fa-server"></i></span>
+                                    </div>
+                                    <div class="control">
+                                        <button class="button is-info is-light" type="button" onclick="wgRandomPrivate24();" title="Gerar Rede Aleatória">
+                                            <i class="bi bi-shuffle"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="field mt-5">
                                 <div class="control">
-                                    <!-- Motor: Chamando o JS original sem mexer nele -->
-                                    <button class="button is-info is-light" type="button" onclick="wgRandomPrivate24();" title="Gerar Rede Aleatória">
-                                        <i class="bi bi-shuffle"></i>
+                                    <button type="submit" class="button is-success is-fullwidth">
+                                        <span class="icon"><i class="fas fa-plus-circle"></i></span>
+                                        <span>Criar Interface wg0</span>
                                     </button>
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="field mt-5">
-                            <div class="control">
-                                <button type="submit" class="button is-success is-fullwidth">
-                                    <span class="icon"><i class="fas fa-plus-circle"></i></span>
-                                    <span>Criar Interface wg0</span>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
+                        </form>
+                    </div>
 
                 <?php else: ?>
-                    <!-- CASO 3: TUDO OK (Mostra a Danger Zone) -->
-                    
-                    <!-- CORPO DO CARD 2: AQUI ENTRA A MÁGICA DO SEU CSS (.scroll-interno-card) -->
-                    <div class="scroll-interno-card" style="display: flex; flex-direction: column;">
-                        
-                        <!-- ESTADO 1: BLOQUEADO (Centralizado bonitão) -->
-                        <div id="visao_normal" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 150px;">
-                            <i class="bi bi-shield-lock" style="font-size: 3.5rem; color: #e2e8f0; margin-bottom: 1rem;"></i>
-                            <button class="button is-danger is-light is-fullwidth" type="button" onclick="document.getElementById('visao_normal').style.display = 'none'; document.getElementById('visao_perigo').style.display = 'flex';" style="font-weight: bold; border: 1px dashed #f87171;">
-                                <span class="icon"><i class="bi bi-unlock-fill"></i></span>
-                                <span>Desbloquear Zona de Perigo</span>
-                            </button>
+                    <!-- CASO 3: TUDO OK -->
+
+                    <!-- ESTADO 1: BLOQUEADO (header normal + cadeado centralizado) -->
+                    <div id="visao_normal" style="display: flex; flex-direction: column; height: 100%;">
+
+                        <!-- Header padrão -->
+                        <div class="level is-mobile px-4 pt-4 pb-3 mb-0" style="border-bottom: 1px solid #f1f5f9; flex-shrink: 0;">
+                            <div class="level-left">
+                                <h2 class="title is-5 mb-0" style="color: #334155;">
+                                    <span class="icon"><i class="bi bi-sliders"></i></span>
+                                    <span>Painel de Controle</span>
+                                </h2>
+                            </div>
+                            <div class="level-right">
+                                <?php if ($interface_configurada && $daemon_ok): ?>
+                                    <button class="button is-small is-light" type="button"
+                                        onclick="document.getElementById('modal_wg_raw').classList.add('is-active');"
+                                        title="Ver wg0.conf bruto">
+                                        <span class="icon"><i class="bi bi-file-earmark-code"></i></span>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </div>
 
-                        <!-- ESTADO 2: ZONA DE PERIGO -->
-                        <div id="visao_perigo" style="display: none; flex-direction: column; animation: fadeIn 0.3s ease;">
+                        <!-- Conteúdo cadeado -->
+                        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.75rem; padding: 1.5rem;">
+                            <i class="bi bi-shield-lock" style="font-size: 3rem; color: #cbd5e1;"></i>
+                            <button class="button is-info is-light is-fullwidth" type="button"
+                                onclick="document.getElementById('visao_normal').style.display='none';
+                                         document.getElementById('visao_avancado').style.display='flex';"
+                                style="font-weight: 600; border: 1px solid #bae6fd;">
+                                <span class="icon"><i class="bi bi-unlock"></i></span>
+                                <span>Ações Avançadas <strong>start/stop</strong> e <strong>reset</strong> da interface</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ESTADO 2: DESBLOQUEADO (tabs coladas no topo do box) -->
+                    <div id="visao_avancado" style="display: none; flex-direction: column; height: 100%; animation: fadeIn 0.3s ease;">
+
+                        <!-- HEADER NATIVO (Colado nas bordas do card) -->
+                        <div style="display: flex; background: #f8fafc; border-bottom: 1px solid #e2e8f0; flex-shrink: 0; align-items: stretch; border-radius: 16px 16px 0 0;">
                             
-                            <div class="level is-mobile mb-3">
-                                <div class="level-left">
-                                    <span class="has-text-danger has-text-weight-bold is-size-6">
-                                        <i class="bi bi-exclamation-triangle-fill mr-1"></i> Ações Críticas
-                                    </span>
-                                </div>
-                                <div class="level-right">
-                                    <!-- Clicar no X volta pro estado 1 -->
-                                    <button class="delete" aria-label="close" type="button" onclick="document.getElementById('visao_perigo').style.display = 'none'; document.getElementById('visao_normal').style.display = 'flex';"></button>
-                                </div>
-                            </div>
+                            <style>
+                                /* Estilo exclusivo para colar nas bordas, ignorando as pílulas do seu CSS global */
+                                .tab-nativa {
+                                    flex: 1;
+                                    padding: 1rem 0.5rem;
+                                    font-size: 0.9rem;
+                                    font-weight: 600;
+                                    color: #64748b;
+                                    text-align: center;
+                                    cursor: pointer;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    gap: 0.5rem;
+                                    background: transparent;
+                                    border-bottom: 3px solid transparent;
+                                    transition: all 0.2s ease;
+                                }
+                                .tab-nativa:hover {
+                                    background: #f1f5f9;
+                                    color: #334155;
+                                }
+                                .tab-nativa.ativa {
+                                    background: #ffffff;
+                                    color: #0ea5e9;
+                                    border-bottom: 3px solid #0ea5e9;
+                                }
+                            </style>
 
-                            <!-- LIGAR / DESLIGAR -->
-                            <div class="box is-shadowless mb-3" style="border: 1px solid #e2e8f0; padding: 0.75rem;">
-                                <p class="heading has-text-grey mb-2"><i class="bi bi-power"></i> Interface wg0</p>
-                                <div style="display: flex; gap: 0.5rem;">
-                                    <?php $is_up = !empty($status_data['data']['if_up']); ?>
-                                    <form method="post" style="flex: 1;" onsubmit="return confirm('Ligar wg0?');">
-                                        <input type="hidden" name="acao" value="server-up">
-                                        <button class="button is-success is-small is-fullwidth <?php echo $is_up ? '' : 'is-outlined'; ?>" type="submit" <?php echo $is_up ? 'disabled' : ''; ?>>Ligar</button>
-                                    </form>
-                                    <form method="post" style="flex: 1;" onsubmit="return confirm('PERIGO: Desligar wg0 e desconectar clientes?');">
-                                        <input type="hidden" name="acao" value="server-down">
-                                        <button class="button is-danger is-small is-fullwidth <?php echo !$is_up ? '' : 'is-outlined'; ?>" type="submit" <?php echo !$is_up ? 'disabled' : ''; ?>>Desligar</button>
-                                    </form>
-                                </div>
-                            </div>
+                            <!-- Aba 1: Status -->
+                            <a id="tab_btn_power" class="tab-nativa ativa" onclick="
+                                document.getElementById('tab_btn_power').classList.add('ativa');
+                                document.getElementById('tab_btn_reset').classList.remove('ativa');
+                                document.getElementById('panel_power').style.display='flex';
+                                document.getElementById('panel_reset').style.display='none';">
+                                <i class="bi bi-power" style="font-size: 1.1rem;"></i> Start/Stop
+                            </a>
+                            
+                            <!-- Aba 2: Reset -->
+                            <a id="tab_btn_reset" class="tab-nativa" onclick="
+                                document.getElementById('tab_btn_reset').classList.add('ativa');
+                                document.getElementById('tab_btn_power').classList.remove('ativa');
+                                document.getElementById('panel_reset').style.display='flex';
+                                document.getElementById('panel_power').style.display='none';">
+                                <i class="bi bi-arrow-clockwise" style="font-size: 1.1rem;"></i> Reset
+                            </a>
 
-                            <!-- RESET TOTAL -->
-                            <div class="box is-shadowless mb-0" style="border: 1px solid #fef08a; padding: 0.75rem; background-color: #fffbeb;">
-                                <p class="heading has-text-warning-dark mb-2"><i class="bi bi-arrow-clockwise"></i> Reset Total</p>
-                                <form method="post" action="?tab=status" onsubmit="return confirmReset();">
+                            <!-- X para voltar ao estado bloqueado -->
+                            <div style="display: flex; align-items: center; padding: 0 1rem; border-left: 1px solid #e2e8f0;">
+                                <button class="delete" type="button" title="Bloquear e Fechar"
+                                    onclick="document.getElementById('visao_avancado').style.display='none';
+                                             document.getElementById('visao_normal').style.display='flex';"></button>
+                            </div>
+                        </div>
+
+                        <!-- PAINEL TAB 1: LIGAR / DESLIGAR -->
+                        <div id="panel_power" style="display: flex; flex-direction: column; flex: 1; padding: 1.25rem;">
+                            <?php $is_up = !empty($status_data['data']['if_up']); ?>
+
+                            <!-- Card único englobando texto e botões -->
+                            <div class="notification <?php echo $is_up ? 'is-success' : 'is-warning'; ?> is-light" style="border-radius: 8px; padding: 1.25rem; height: 100%; display: flex; flex-direction: column; margin-bottom: 0;">
+                                
+                                <!-- Cabeçalho Simples e Direto -->
+                                <div class="mb-3">
+                                    <strong style="color: <?php echo $is_up ? '#064e3b' : '#92400e'; ?>; display: flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; margin-bottom: 0.3rem;">
+                                        <i class="bi <?php echo $is_up ? 'bi-lightning-charge-fill' : 'bi-power'; ?>"></i> Controle da Interface
+                                    </strong>
+                                </div>
+
+								<!-- Botões empurrados para o fundo (mt-auto) -->
+								<div class="columns is-mobile is-gapless mt-auto mb-0" style="margin-top: 2rem !important;">
+                                    <div class="column pr-1">
+                                        <form method="post" onsubmit="return confirm('Ligar a interface wg0?');">
+                                            <input type="hidden" name="acao" value="server-up">
+                                            <button class="button is-success is-fullwidth has-text-weight-bold <?php echo $is_up ? 'is-outlined' : ''; ?>"
+                                                type="submit" <?php echo $is_up ? 'disabled' : ''; ?> style="border-radius: 6px; <?php echo !$is_up ? 'box-shadow: 0 4px 12px rgba(72, 199, 116, 0.3); border: none;' : ''; ?>">
+                                                <span class="icon"><i class="bi bi-play-fill"></i></span>
+                                                <span>Ligar</span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <div class="column pl-1">
+                                        <form method="post" onsubmit="return confirm('Desligar wg0 e desconectar todos os clientes?');">
+                                            <input type="hidden" name="acao" value="server-down">
+                                            <button class="button is-danger is-fullwidth has-text-weight-bold <?php echo !$is_up ? 'is-outlined' : ''; ?>"
+                                                type="submit" <?php echo !$is_up ? 'disabled' : ''; ?> style="border-radius: 6px; <?php echo $is_up ? 'box-shadow: 0 4px 12px rgba(241, 70, 104, 0.3); border: none;' : ''; ?>">
+                                                <span class="icon"><i class="bi bi-stop-fill"></i></span>
+                                                <span>Desligar</span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                
+                            </div>
+                        </div>
+
+                        <!-- PAINEL TAB 2: RESET TOTAL -->
+                        <div id="panel_reset" style="display: none; flex-direction: column; flex: 1; padding: 1.25rem;">
+                            
+                            <!-- Card Amarelo englobando todo o conteúdo (igual ao azul do Backup) -->
+                            <div class="notification is-warning is-light" style="border-radius: 8px; padding: 1.25rem; height: 100%; display: flex; flex-direction: column; margin-bottom: 0;">
+                                
+                                <!-- Cabeçalho e Texto explicativo -->
+                                <div class="mb-3">
+                                    <strong style="color: #b45309; display: flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; margin-bottom: 0.3rem;">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> Reset Total do Servidor
+                                    </strong>
+                                </div>
+
+                                <!-- Formulário agora vive dentro do card -->
+                                <form method="post" action="?tab=status" onsubmit="return confirmReset();" style="display: flex; flex-direction: column; flex: 1;">
                                     <input type="hidden" name="acao" value="reset_server">
                                     
-                                    <div class="field has-addons mb-2">
-                                        <div class="control is-expanded">
-                                            <input class="input is-small" type="text" name="wg_network_v4_reset" value="<?php echo htmlspecialchars($current_network ?: '10.66.66.1/24'); ?>" required>
-                                        </div>
-                                        <div class="control">
-                                            <button class="button is-small is-info is-light" type="button" onclick="wgRandomPrivate24();" title="Gerar Rede Aleatória">
-                                                <i class="bi bi-shuffle"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-
+                                    <!-- Campo Rede com Nome -->
                                     <div class="field mb-3">
-                                        <div class="control">
-                                            <input class="input is-small" type="number" name="wg_port_reset" value="<?php echo $current_port ?: 51820; ?>" required placeholder="Porta">
+                                        <label class="label is-small" style="color: #92400e;">Novo endereço ipv4 (wg0)</label>
+                                        <div class="field has-addons mb-0">
+                                            <div class="control is-expanded">
+                                                <!-- Fundo branco forçado para dar contraste com o amarelo -->
+                                                <input class="input is-small" type="text" name="wg_network_v4_reset"
+                                                    value="<?php echo htmlspecialchars($current_network ?: '10.66.66.1/24'); ?>" required style="background: #ffffff; border-color: #fde68a;">
+                                            </div>
+                                            <div class="control">
+                                                <button class="button is-small" type="button"
+                                                    onclick="wgRandomPrivate24();" title="Gerar Rede Aleatória" style="background: #fef3c7; border-color: #fde68a; color: #b45309;">
+                                                    <i class="bi bi-shuffle"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                     
-                                    <button class="button is-warning is-small is-fullwidth has-text-weight-bold" type="submit" style="border: 1px solid #facc15;">
-                                        Executar Reset Total
-                                    </button>
+                                    <!-- Campo Porta com Nome -->
+                                    <div class="field mb-4">
+                                        <label class="label is-small" style="color: #92400e;">Nova Porta (UDP)</label>
+                                        <div class="control">
+                                            <input class="input is-small" type="number" name="wg_port_reset"
+                                                value="<?php echo $current_port ?: 51820; ?>" required style="background: #ffffff; border-color: #fde68a;">
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Botão Executar empurrado para o rodapé (mt-auto) -->
+                                    <div class="mt-auto">
+                                        <button class="button is-small is-fullwidth" type="submit" style="border-radius: 6px; font-weight: 600; background: linear-gradient(135deg, #f59e0b, #d97706); color: #ffffff; border: none; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                                            <span class="icon"><i class="bi bi-arrow-clockwise"></i></span>
+                                            <span>Executar Reset Total</span>
+                                        </button>
+                                    </div>
                                 </form>
                             </div>
+                        </div>
 
-                        </div> <!-- fim visão perigo -->
-
-                    </div> <!-- fim da mola -->
-
-                    <style>
-                        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-                    </style>
+                    </div><!-- fim visao_avancado -->
 
                 <?php endif; ?>
             </div>
-        </div> <!-- fim da coluna 2 -->
+        </div><!-- fim coluna 2 -->
+
+        <style>
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        </style>
 
         <!-- ========================================
              COLUNA 3: BACKUPS (is-5 = 42% da tela)

@@ -25,6 +25,24 @@ html, body {
     padding: 1.25rem !important; /* Espaço interno enxuto */
     transition: transform 0.3s ease;
 }
+.box-border-info {
+    border-left: 4px solid #3298dc !important;
+    background: linear-gradient(135deg, #d6eaf8 0%, #aed6f1 100%) !important;
+    box-shadow: 0 16px 40px rgba(50, 152, 220, 0.15) !important;
+}
+.box-border-warning {
+    border-left: 4px solid #facc15 !important;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef08a 100%) !important;
+}
+.box-border-danger {
+    border-left: 4px solid #ef4444 !important;
+    background: linear-gradient(135deg, #ffe0e0 0%, #ffcccc 100%) !important;
+}
+.box-border-success {
+    border-left: 4px solid #48c774 !important;
+    background: linear-gradient(135deg, #d4f4dd 0%, #bfe9c9 100%) !important;
+    box-shadow: 0 16px 40px rgba(72, 199, 116, 0.15) !important;
+}
 
 h1, .title, .subtitle {
     font-weight: 600 !important;

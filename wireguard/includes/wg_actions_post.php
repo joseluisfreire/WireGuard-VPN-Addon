@@ -232,28 +232,50 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // =========================================================================
-    // RADAR LIVE STATS (Efeito LED / WinBox) - Retorna tráfego em tempo real
+    // RADAR LIVE STATS - Retorna tráfego e Status em tempo real para o JS
     // =========================================================================
     if ($acao === 'get_live_stats') {
         header('Content-Type: application/json');
         
-        // Pede pro Daemon Go a situação exata de agora
-        $resp = wg_call(['action' => 'list-clients'], $socketPath);
+        // Faz a chamada no socket usando o caminho que você confirmou
+        $resp = wg_call(['action' => 'list-clients'], '/run/wgmkauth.sock');
         
-        if (!empty($resp['ok']) && !empty($resp['data'])) {
-            $clients = $resp['data']['clients'] ?? $resp['data'];
+        if (!empty($resp['ok']) && !empty($resp['data']['clients'])) {
             $dados_limpos = [];
+            $agora = time(); // Pega a hora exata de agora no PHP
             
-            // Filtramos só o que importa pra não pesar a rede
-            foreach ($clients as $c) {
-                $pk = $c['publicKey'] ?? $c['public_key'] ?? '';
+            foreach ($resp['data']['clients'] as $c) {
+                $pk = $c['publicKey'] ?? '';
                 if ($pk !== '') {
+                    
+                    // Pega a data exata que o Go devolveu no seu teste
+                    $handshake_str = $c['latestHandshakeAt'] ?? '';
+                    $handshake_ts = 0;
+                    $is_online = false; // Começa assumindo que está offline
+                    
+                    // O Go manda a data com "Z" no final (UTC). O PHP entende isso nativamente.
+                    if (!empty($handshake_str) && $handshake_str !== '0001-01-01T00:00:00Z') {
+                        $handshake_ts = strtotime($handshake_str);
+                        
+                        // A MÁGICA ACONTECE AQUI:
+                        // Se o último aperto de mão foi há menos de 180 segundos (3 minutos),
+                        // o PHP define que o cliente está ONLINE!
+                        if ($handshake_ts > 0 && ($agora - $handshake_ts) <= 180) {
+                            $is_online = true;
+                        }
+                    }
+                    
+                    // Empacota tudo e CRIA a variável "online" para o JavaScript ler
                     $dados_limpos[$pk] = [
-                        'rx' => (int)($c['transferRx'] ?? 0),
-                        'tx' => (int)($c['transferTx'] ?? 0)
+                        'rx'        => (int)($c['transferRx'] ?? 0),
+                        'tx'        => (int)($c['transferTx'] ?? 0),
+                        'endpoint'  => $c['endpoint'] ?? '',
+                        'handshake' => $handshake_ts,
+                        'online'    => $is_online // <-- Aqui o PHP manda o true/false pro JS!
                     ];
                 }
             }
+            // Devolve pro JS o JSON mastigadinho
             echo json_encode(['status' => 'ok', 'peers' => $dados_limpos]);
         } else {
             echo json_encode(['status' => 'error']);

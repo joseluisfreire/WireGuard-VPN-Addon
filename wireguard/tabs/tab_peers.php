@@ -225,7 +225,7 @@
 							</td>
 							
 							<!-- 🎯 ÂNCORA 2: A COLUNA UNIFICADA "DEUSA" (Status do Túnel) -->
-							<td class="is-vcentered" style="white-space: nowrap;">
+							<td class="is-vcentered wg-status-cell" data-is-maquete="<?php echo $is_maquete ? '1' : '0'; ?>" data-disabled="<?php echo $admin_disabled ? '1' : '0'; ?>" style="white-space: nowrap;">
 								<?php if ($admin_disabled): ?>
 									<!-- ESTADO 1: Desativado -->
 									<span class="tag is-dark wg-btn-status" style="font-weight: 600;">
@@ -254,7 +254,7 @@
 								<?php endif; ?>
 							</td>
 
-							<td class="is-vcentered">
+							<td class="is-vcentered wg-endpoint-cell">
 								<?php if (!empty($c['endpoint'])): ?>
 									<code style="background-color: #f1f5f9; color: #475569; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; border: 1px solid #e2e8f0; white-space: nowrap;">
 										<?php echo htmlspecialchars($c['endpoint']); ?>
@@ -265,7 +265,7 @@
 							</td>
 							
 							<!-- 🎯 ÂNCORA 3: ÚLTIMO HANDSHAKE - Mãozinha + Data + Raiozinho -->
-							<td class="is-vcentered" style="font-size:0.85rem; color:#475569; white-space: nowrap;">
+							<td class="is-vcentered wg-handshake-cell" style="font-size:0.85rem; color:#475569; white-space: nowrap;">
 								<?php if (!empty($dt_handshake)): ?>
 									<?php if ($is_online): ?>
 										<!-- Mãozinha Azul (Esquerda) -->

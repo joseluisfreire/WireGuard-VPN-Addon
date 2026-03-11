@@ -767,20 +767,73 @@ if (!isset($snapshots)) {
     </div>
 </div>
 <?php endforeach; ?>
-    <!-- MODAL WG0.CONF RAW (SOMENTE LEITURA) -->
-    <?php if ($interface_configurada && $daemon_ok): ?>
-    <div class="modal" id="modal_wg_raw">
-        <div class="modal-background" onclick="document.getElementById('modal_wg_raw').classList.remove('is-active');"></div>
-        <div class="modal-content" style="max-width:700px;">
-            <div class="box" style="background: #1e293b; padding: 1.5rem; border: 1px solid #334155;">
-                <div class="is-flex is-justify-content-space-between is-align-items-center mb-3">
-                    <h3 class="title is-5 has-text-white mb-0">
-                        <i class="bi bi-file-earmark-code mr-2"></i>wg0.conf (Snapshot em Memória)
-                    </h3>
-                    <button class="delete" aria-label="close" onclick="document.getElementById('modal_wg_raw').classList.remove('is-active');"></button>
-                </div>
-                <pre style="background: #0f172a; color: #38bdf8; padding: 1rem; border-radius: 8px; font-size: 0.85rem; max-height: 400px; overflow-y: auto; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);"><code><?php echo htmlspecialchars($wg_conf_raw ?? ''); ?></code></pre>
+<!-- ========================================
+     MODAL DIVIDIDO: WG0.CONF vs RUNTIME DO KERNEL
+     ======================================== -->
+<?php if ($interface_configurada && $daemon_ok): ?>
+<div class="modal" id="modal_wg_raw">
+    <div class="modal-background" onclick="document.getElementById('modal_wg_raw').classList.remove('is-active');"></div>
+    
+    <!-- Largura aumentada para 1200px para caber as duas colunas confortavelmente -->
+    <div class="modal-content" style="width: 95%; max-width: 1200px;">
+        <div class="box" style="border-radius: 12px; padding: 1.5rem;">
+            
+            <!-- HEADER DO MODAL -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h3 class="title is-4" style="margin-bottom:0; color: #0f172a; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="bi bi-cpu-fill" style="color: #0ea5e9;"></i> 
+                    Diagnóstico da Interface wg0
+                </h3>
+                <button class="delete is-large" aria-label="close" onclick="document.getElementById('modal_wg_raw').classList.remove('is-active');"></button>
             </div>
+
+            <!-- LAYOUT DIVIDIDO EM DUAS COLUNAS -->
+            <div class="columns is-desktop is-align-items-stretch">
+                
+                <!-- COLUNA 1: ARQUIVO ESTÁTICO (wg0.conf) -->
+                <div class="column is-half" style="display: flex; flex-direction: column;">
+                    <div class="notification is-info is-light" style="padding: 0.5rem 1rem; margin-bottom: 0.5rem; font-weight: 600; border-radius: 6px; border-left: 4px solid #0ea5e9;">
+                        <i class="bi bi-file-earmark-text"></i> Arquivo Físico (/etc/wireguard/wg0.conf)
+                    </div>
+                    <textarea class="textarea" readonly style="flex: 1; min-height: 500px; font-family: 'Courier New', monospace; font-size: 0.85rem; background: #0f172a; color: #e2e8f0; border: none; border-radius: 6px; resize: none; padding: 1rem;" spellcheck="false"><?php echo htmlspecialchars($wg_conf_raw ?? "Arquivo de configuração não encontrado ou interface não inicializada."); ?></textarea>
+                </div>
+
+                <!-- COLUNA 2: RUNTIME DO KERNEL (Colorido) -->
+                <div class="column is-half" style="display: flex; flex-direction: column;">
+                    <div class="notification is-success is-light" style="padding: 0.5rem 1rem; margin-bottom: 0.5rem; font-weight: 600; border-radius: 6px; border-left: 4px solid #10b981;">
+                        <i class="bi bi-terminal"></i> Status Real no Kernel Linux
+                    </div>
+                    <pre style="flex: 1; height: 100%; min-height: 500px; max-height: 500px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.85rem; background: #000000; color: #cbd5e1; border-radius: 6px; padding: 1rem; line-height: 1.5; white-space: pre-wrap;"><?php 
+                        // MÁGICA AQUI: Puxando da variável que você já populou lá no topo!
+                        $runtimeText = $server_cfg_data['data']['runtimeText'] ?? '';
+                        
+                        if (empty($runtimeText)) {
+                            echo '<span style="color: #facc15;">Nenhuma informação de runtime disponível. A interface pode estar offline.</span>';
+                        } else {
+                            $html = htmlspecialchars($runtimeText, ENT_NOQUOTES);
+                            
+                            // Traduz códigos ANSI para Cores CSS
+                            $esc = chr(27); 
+                            $html = str_replace($esc . '[1m', '<span style="font-weight: bold; color: #ffffff;">', $html);
+                            $html = str_replace($esc . '[32m', '<span style="color: #4ade80;">', $html); // Verde
+                            $html = str_replace($esc . '[33m', '<span style="color: #facc15;">', $html); // Amarelo
+                            $html = str_replace($esc . '[36m', '<span style="color: #22d3ee;">', $html); // Ciano
+                            $html = str_replace($esc . '[0m', '</span>', $html); // Reset
+                            
+                            echo $html;
+                        }
+                    ?></pre>
+                </div>
+                
+            </div>
+            
+            <div class="buttons is-right mt-4 mb-0">
+                <button class="button" type="button" onclick="document.getElementById('modal_wg_raw').classList.remove('is-active');">
+                    Fechar Diagnóstico
+                </button>
+            </div>
+            
         </div>
     </div>
-    <?php endif; ?>
+</div>
+<?php endif; ?>

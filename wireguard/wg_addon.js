@@ -599,10 +599,10 @@ function fecharModalOtp() {
 }
 
 // ==============================================================
-// RADAR LIVE STATS - O "Efeito WinBox" (Atualiza RX/TX ao vivo)
+// RADAR LIVE STATS - O "Efeito WinBox" (Atualiza Tudo ao Vivo)
 // ==============================================================
 
-// Função pra converter os números crus pro formato bonito no JS
+// Converte bytes para formato humano
 function formatarBytesJS(bytes) {
     if (bytes <= 0) return '<span class="has-text-grey-light">0 B</span>';
     const k = 1024;
@@ -610,6 +610,29 @@ function formatarBytesJS(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
+// Formata o Timestamp do Handshake para "Hoje às HH:MM" ou "DD/MM às HH:MM"
+function formatarDataHandshakeJS(timestamp) {
+    if (!timestamp || timestamp === 0) return '-';
+    const date = new Date(timestamp * 1000);
+    const now = new Date();
+    
+    const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    
+    if (isToday) {
+        return `Hoje às ${hh}:${mm}`;
+    } else {
+        const dd = String(date.getDate()).padStart(2, '0');
+        const mo = String(date.getMonth() + 1).padStart(2, '0');
+        return `${dd}/${mo} às ${hh}:${mm}`;
+    }
+}
+
+// --- VARIÁVEIS DO FAST-DETECT ---
+let historicoPeers = {}; 
+const TEMPO_LIMITE_RX_SEGUNDOS = 35; // Se o RX não subir por 35 segundos, marca como Offline
 
 // Inicia o Radar a cada 5 segundos
 setInterval(function() {
@@ -624,6 +647,8 @@ setInterval(function() {
     .then(res => res.json())
     .then(data => {
         if(data.status === 'ok') {
+            let agora = Date.now(); // Pega a hora exata deste pulso do radar
+
             // Varre cada linha da tabela
             document.querySelectorAll('.wg-peer-row').forEach(row => {
                 let pubKey = row.getAttribute('data-pubkey');
@@ -631,30 +656,91 @@ setInterval(function() {
                 if(data.peers[pubKey]) {
                     let liveData = data.peers[pubKey];
                     
+                    // --- 🧠 INÍCIO DA LÓGICA FAST-DETECT (RX) ---
+                    if (!historicoPeers[pubKey]) {
+                        // Primeira vez que vemos o peer, salva o RX atual
+                        historicoPeers[pubKey] = {
+                            ultimoRx: liveData.rx,
+                            ultimaVezQueMexeu: agora
+                        };
+                    }
+
+                    let memoria = historicoPeers[pubKey];
+                    let tempoCongelado = (agora - memoria.ultimaVezQueMexeu) / 1000;
+
+                    // O RX Subiu?
+                    if (liveData.rx > memoria.ultimoRx) {
+                        memoria.ultimoRx = liveData.rx;      // Atualiza o novo recorde de RX
+                        memoria.ultimaVezQueMexeu = agora;   // Zera o cronômetro de inatividade
+                        tempoCongelado = 0;
+                    }
+
+                    // A MÁGICA ACONTECE AQUI:
+                    // O cliente só fica com a tag Online SE o PHP confirmar (Handshake < 3 min) 
+                    // E se o RX não estiver congelado há mais tempo que o nosso limite (35s)
+                    let isRealmenteOnline = liveData.online && (tempoCongelado <= TEMPO_LIMITE_RX_SEGUNDOS);
+                    // --- 🧠 FIM DA LÓGICA FAST-DETECT ---
+
                     let cellRx = row.querySelector('.wg-rx-cell');
                     let cellTx = row.querySelector('.wg-tx-cell');
-					let btnStatus = row.querySelector('.wg-btn-status'); 
-					let iconHandshake = row.querySelector('.wg-icon-handshake'); 
+                    let cellStatus = row.querySelector('.wg-status-cell');
+                    let cellEndpoint = row.querySelector('.wg-endpoint-cell');
+                    let cellHandshake = row.querySelector('.wg-handshake-cell');
                     
-                    let rxAntigo = parseInt(cellRx.getAttribute('data-bytes')) || 0;
-                    let rxNovo = parseInt(liveData.rx);
-                    let txNovo = parseInt(liveData.tx);
+                    // 1. Atualiza RX e TX girando os números
+                    if(cellRx && cellTx) {
+                        cellRx.setAttribute('data-bytes', liveData.rx);
+                        cellRx.querySelector('.texto-bytes').innerHTML = formatarBytesJS(liveData.rx);
+                        
+                        cellTx.setAttribute('data-bytes', liveData.tx);
+                        cellTx.querySelector('.texto-bytes').innerHTML = formatarBytesJS(liveData.tx);
+                    }
                     
-                    // 1. Atualiza os números girando ao vivo igual WinBox
-                    cellRx.setAttribute('data-bytes', rxNovo);
-                    cellRx.querySelector('.texto-bytes').innerHTML = formatarBytesJS(rxNovo);
-                    
-                    cellTx.setAttribute('data-bytes', txNovo);
-                    cellTx.querySelector('.texto-bytes').innerHTML = formatarBytesJS(txNovo);
-                    
-                    // 2. A MÁGICA DA VIDA: Se RX moveu, a filial tá pingando AGORA!
-                    if(rxNovo > rxAntigo) {
-                        btnStatus.classList.add('status-online-glow');
-                        if(iconHandshake) iconHandshake.classList.add('icon-online');
-                    } else {
-                        // Passou 5 segundos e o RX não mudou? O túnel parou. Apaga as luzes.
-                        btnStatus.classList.remove('status-online-glow');
-                        if(iconHandshake) iconHandshake.classList.remove('icon-online');
+                    // 2. Atualiza Endpoint (IP:Porta ou tracinho)
+                    if(cellEndpoint) {
+                        if(liveData.endpoint && liveData.endpoint !== '(none)' && liveData.endpoint !== '') {
+                            cellEndpoint.innerHTML = `<code style="background-color: #f1f5f9; color: #475569; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; border: 1px solid #e2e8f0; white-space: nowrap;">${liveData.endpoint}</code>`;
+                        } else {
+                            cellEndpoint.innerHTML = '<span style="color: #94a3b8;">-</span>';
+                        }
+                    }
+
+                    // 3. Atualiza Status e Handshake Inteligente
+                    if(cellStatus && cellHandshake) {
+                        // Verifica se o admin desligou o peer. Se sim, não altera o status.
+                        let isDisabled = cellStatus.getAttribute('data-disabled') === '1';
+                        let isMaquete = cellStatus.getAttribute('data-is-maquete') === '1';
+                        
+                        if (!isDisabled) {
+                            let horaFormatada = formatarDataHandshakeJS(liveData.handshake);
+                            
+                            // 🚀 Mudamos "liveData.online" para "isRealmenteOnline"
+                            if(isRealmenteOnline) { 
+                                // MODO ONLINE (Verde ou Roxo)
+                                if(isMaquete) {
+                                    cellStatus.innerHTML = `<span class="tag wg-btn-status status-online-glow" title="Em Paralelo: IP do ramal ainda não foi efetivado." style="background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; font-weight: 600;"><i class="bi bi-diagram-2-fill mr-1"></i> Online (Paralelo)</span>`;
+                                } else {
+                                    cellStatus.innerHTML = `<span class="tag wg-btn-status status-online-glow" title="IP Oficial: Túnel principal operacional." style="background-color: #dcfce7; color: #166534; border: 1px solid #86efac; font-weight: 600;"><i class="bi bi-diagram-2-fill mr-1"></i> Online (Oficial)</span>`;
+                                }
+                                
+                                cellHandshake.innerHTML = `
+                                    <i class="fa fa-handshake-o mr-1" style="color: #0ea5e9; font-size: 0.95rem;" title="Handshake estabelecido"></i>
+                                    <span style="color:#0f172a; font-weight: 500;">${horaFormatada}</span>
+                                    <i class="bi bi-activity wg-icon-handshake icon-online ml-2" title="Túnel Ativo e Comunicando!"></i>`;
+                            } else {
+                                // MODO OFFLINE (Laranja)
+                                if(isMaquete) {
+                                    cellStatus.innerHTML = `<span class="tag is-warning wg-btn-status" style="background-color: #ffedd5; color: #9a3412; border: 1px solid #fdba74; font-weight: 600;"><i class="bi bi-exclamation-triangle-fill mr-1"></i> Offline (Paralelo)</span>`;
+                                } else {
+                                    cellStatus.innerHTML = `<span class="tag is-warning wg-btn-status" style="background-color: #ffedd5; color: #9a3412; border: 1px solid #fdba74; font-weight: 600;"><i class="bi bi-exclamation-triangle-fill mr-1"></i> Offline (Oficial)</span>`;
+                                }
+                                
+                                cellHandshake.innerHTML = `
+                                    <i class="fa fa-handshake-o has-text-grey-light mr-1" style="font-size: 0.95rem;"></i>
+                                    <span class="has-text-grey-light">${horaFormatada}</span>
+                                    <i class="bi bi-activity wg-icon-handshake has-text-grey-light ml-2" title="Túnel Parado"></i>`;
+                            }
+                        }
                     }
                 }
             });

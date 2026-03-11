@@ -1,3 +1,4 @@
 *.debug
 *.log
 addons.class.php
+wireguard/wg-sockEsudo-test.php

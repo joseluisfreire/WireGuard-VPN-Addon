@@ -544,6 +544,60 @@ function submitOtpFromPeers(event) {
     // Se clicar em Cancelar, nada acontece e ele volta pra tabela de boa!
 }
 
+async function abrirModalOtp(rbs) {
+    const modal = document.getElementById('modal_otp_progress');
+    const container = document.getElementById('otp_log_container');
+    const btnFechar = document.getElementById('btn_fechar_otp');
+    
+    if(!modal) return alert("HTML do modal não encontrado!");
+    
+    modal.classList.add('is-active');
+    container.innerHTML = `<div style="color: #38bdf8; font-weight: bold;">⚡ Iniciando fila de injeção em ${rbs.length} RouterBoard(s)...</div><br>`;
+    btnFechar.disabled = true;
+    btnFechar.innerText = "Aguarde o Processo...";
+    
+    for(let i = 0; i < rbs.length; i++) {
+        let rb = rbs[i];
+        
+        let logLine = document.createElement('div');
+        logLine.innerHTML = `<span style="color:#94a3b8;">[${i+1}/${rbs.length}]</span> Processando <b>${rb.nome}</b>... <i class="bi bi-hourglass-split" style="animation: spin 2s linear infinite; color: #facc15;"></i>`;
+        container.appendChild(logLine);
+        container.scrollTop = container.scrollHeight;
+        
+        let formData = new FormData();
+        formData.append('acao', 'executar_otp_unitario');
+        formData.append('id_nas', rb.id_nas);
+        
+        try {
+            let res = await fetch(window.location.href, { method: 'POST', body: formData });
+            let data = await res.json();
+            
+            if(data.status === 'ok') {
+                logLine.innerHTML = `
+                    <div style="margin-bottom: 15px; border-left: 2px solid #4ade80;">
+                        <span style="color:#4ade80; font-weight: bold; margin-left: 10px;">[${i+1}/${rbs.length}] ✅ SUCESSO NO NAS: ${rb.nome}</span>
+                        ${data.msg_html}
+                    </div>`;
+            } else {
+                logLine.innerHTML = `<span style="color:#f87171;">[${i+1}/${rbs.length}] ❌ Falha em <b>${rb.nome}</b>: ${data.msg}</span>`;
+                console.warn("Log SSH Falha:", data.debug);
+            }
+        } catch(e) {
+            logLine.innerHTML = `<span style="color:#f87171;">[${i+1}/${rbs.length}] ❌ Erro Crítico: Falha na requisição ao servidor.</span>`;
+        }
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    container.innerHTML += `<br><div style="color: #38bdf8; font-weight: bold;">✨ Processo Finalizado!</div>`;
+    btnFechar.disabled = false;
+    btnFechar.innerText = "Concluir e Atualizar Tela";
+    btnFechar.onclick = function() { window.location.reload(); };
+}
+
+function fecharModalOtp() {
+    document.getElementById('modal_otp_progress').classList.remove('is-active');
+}
+
 // ==============================================================
 // RADAR LIVE STATS - O "Efeito WinBox" (Atualiza RX/TX ao vivo)
 // ==============================================================

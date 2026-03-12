@@ -91,7 +91,7 @@ Apesar do WireGuard estar nativo tanto no kernel Linux quanto no RouterOS, o **M
 |---|---|---|
 | **WireGuard VPN Addon** | Interface PHP/JS/CSS integrada ao MK-AUTH | [Este repo](https://github.com/joseluisfreire/WireGuard-VPN-Addon) |
 | **wg-mkauthd** | Daemon em Go — bridge entre PHP e wireguard-tools via Unix socket | [wg-mkauthd](https://github.com/joseluisfreire/wg-mkauthd) |
-| **wireguard-tools-static** | `wg` e `wg-quick` compilados estaticamente (zero dependências) | [wireguard-tools-static](https://github.com/joseluisfreire/wireguard-tools-static) |
+| **wireguard-tools-fork** | `wg` e `wg-quick` compilados estaticamente (zero dependências) | [wireguard-tools](https://github.com/joseluisfreire/wireguard-tools) |
 
 
 ## ⚡ Instalação e Gerenciamento

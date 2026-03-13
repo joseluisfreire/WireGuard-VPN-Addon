@@ -168,18 +168,24 @@
                     <?php if (empty($ramais_list)): ?>
                         <tr><td colspan="8" class="has-text-centered py-5 has-text-grey"><i class="bi bi-inbox is-size-3"></i><br>Nenhum NAS cadastrado no MK-AUTH.</td></tr>
                     <?php else: ?>
-                        <?php foreach ($ramais_list as $row): 
-                            
-                            $ja_provisionado = !empty($row['wg_id']);
-                            $has_ip    = !empty($row['ipfall']);
-                            $has_pass  = !empty($row['senha']);
-                            $porta_ssh = !empty($row['portassh']) ? $row['portassh'] : '22';
-                            
-                            $otp_pronto = ($has_ip && $has_pass);
+						<?php foreach ($ramais_list as $row): 
+							
+							$ip_mk_atual = trim($row['nasname']);
+							$ip_fall_atual = trim($row['ipfall']);
+							
+							$ja_provisionado = !empty($row['wg_id']);
+							
+							// Tem IP válido se tiver o Fallback OU o IP do MK
+							$has_ip    = !empty($ip_fall_atual) || !empty($ip_mk_atual); 
+							
+							$has_pass  = !empty($row['senha']);
+							$porta_ssh = !empty($row['portassh']) ? $row['portassh'] : '22';
+							
+							// Agora o OTP fica pronto se qualquer um dos IPs existir + a senha
+							$otp_pronto = ($has_ip && $has_pass);
 
-                            $ip_wg_limpo = $ja_provisionado ? explode('/', $row['wg_ip'])[0] : '';
-                            $ip_mk_atual = trim($row['nasname']);
-                            
+							$ip_wg_limpo = $ja_provisionado ? explode('/', $row['wg_ip'])[0] : '';
+						
                             // Lógica inteligente dos cards
                             $ip_espelhado_ok = ($ja_provisionado && $ip_wg_limpo === $ip_mk_atual);
                             $is_disabled     = ($ja_provisionado && isset($row['wg_status']) && $row['wg_status'] === 'disabled');
@@ -217,14 +223,14 @@
                                 <?php endif; ?>
                             </td>
                             
-                            <!-- 5. IP FALLBACK -->
-                            <td class="is-vcentered has-text-centered">
-                                <?php if($has_ip): ?>
-                                    <code id="ip_fall_<?= $row['id_nas'] ?>" style="transition: all 0.3s ease;"><?= htmlspecialchars($row['ipfall']) ?></code>
-                                <?php else: ?>
-                                    <span class="tag is-danger is-light" title="IP Fallback é necessário para que o OTP funcione corretamente em um cenário de primeira instalação."><i class="bi bi-exclamation-circle mr-1"></i> Faltando</span>
-                                <?php endif; ?>
-                            </td>
+							<!-- 5. IP FALLBACK -->
+							<td class="is-vcentered has-text-centered">
+								<?php if(!empty($ip_fall_atual)): ?>
+									<code id="ip_fall_<?= $row['id_nas'] ?>" style="transition: all 0.3s ease;"><?= htmlspecialchars($ip_fall_atual) ?></code>
+								<?php else: ?>
+									<span class="tag is-danger is-light" title="Usando IP do MK como fallback."><i class="bi bi-exclamation-circle mr-1"></i> Faltando</span>
+								<?php endif; ?>
+							</td>
 
                             <!-- 6. PORTA SSH -->
                             <td class="is-vcentered has-text-centered">

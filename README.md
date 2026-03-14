@@ -165,26 +165,46 @@ Inicia o daemon e valida a instalação
 
 ```markdown
 
-🗂️ Estrutura de Arquivos
+## 🗂️ Estrutura de Arquivos
+
 
 /opt/mk-auth/admin/addons/
-├── addon_wireguard.js              # Loader — registra o addon no menu do MK-AUTH
+├── addon_wireguard.js                    # Loader — registra o addon no menu do MK-AUTH
 └── wireguard/
-    ├── manifest.json               # Metadados do addon (nome, versão, autor)
-    ├── addons.class.php            # Symlink → /opt/mk-auth/include/addons.inc.hhvm
-    ├── index.php                   # Interface principal (HTML/Bulma + PHP)
-    ├── wg_actions_post.php         # Handler de todas as ações POST
-    ├── wg_addon.css                # Estilos customizados
-    ├── wg_addon.js                 # JavaScript do frontend
-    └── wireguard-logo.png          # Logo WireGuard
+    ├── manifest.json                     # Metadados do addon (nome, versão, autor)
+    ├── addons.class.php                  # Symlink → /opt/mk-auth/include/addons.inc.hhvm
+    ├── index.php                         # Interface principal do addon
+    ├── login.hhvm                        # Redir/autenticação correta ao termno da seção
+    ├── wg_addon.css                      # Estilos customizados do frontend
+    ├── wg_addon.js                       # JavaScript do frontend
+    ├── wireguard-logo.png                # Logo WireGuard
+    ├── logo-circle.png                   # Variação do logo
+    ├── WireGuard_logo.svg                # Logo em SVG
+    ├── includes/
+    │   ├── database.php                  # Camada de acesso ao banco / conexão
+    │   ├── helpers.php                   # Funções utilitárias e helpers
+    │   ├── menu_abas.php                 # Construção/menu das abas da interface
+    │   ├── modais.php                    # Modais reutilizáveis da interface
+    │   ├── wg_actions_post.php           # Handler central das ações POST
+    │   └── wg_downloads.php              # Rotinas de download/exportação
+    └── tabs/
+        ├── tab_criar.php                 # Aba de criação de peer standalone
+        ├── tab_peers.php                 # Aba de gerenciamento de peers/ramais
+        ├── tab_provisionar.php           # Aba de provisionamento de ramais/RBs
+        └── tab_status.php                # Aba de Gerenciamento da INTERFACE WG0
+
+
+### Binários instalados no sistema
+
 
 /usr/local/bin/
-├── wg                              # WireGuard CLI (binário estático)
-└── wg-quick                        # Helper para interfaces WireGuard (estático)
+├── wg                                    # WireGuard CLI (binário estático)
+└── wg-quick                              # Helper para interfaces WireGuard (estático)
 
 /usr/local/sbin/
-└── wg-mkauthd                      # Daemon Go (binário estático)
+└── wg-mkauthd                            # Daemon Go (binário estático)
 ```
+
 
 🛡️ Segurança
 

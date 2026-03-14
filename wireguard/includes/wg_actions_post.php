@@ -1266,7 +1266,6 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // ------------------------------------------------------------------
     // editar_peer: salvar IP (address) dos peers selecionados
-    // ⚡ SNAPSHOT ANTES (uma vez, antes do loop)
     // ------------------------------------------------------------------
     if ($acao === 'editar_peer') {
         $subacao = isset($_POST['subacao']) ? trim($_POST['subacao']) : '';
@@ -1280,26 +1279,20 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$peer_ids) {
                 $msg_erro .= 'Nenhum peer selecionado.';
             } else {
-                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                // SNAPSHOT antes de alterar endereços
-                // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                
                 wg_snapshot_interface($mysqli, $socketPath, 'before_update_address');
-
+                
+                $msg_extra = '';
+				
                 foreach ($peer_ids as $id_peer) {
-                    // Pega o dado cru enviado pelo formulário inline
-                    $address_raw = isset($_POST['address_inline'][$id_peer])
-                        ? trim($_POST['address_inline'][$id_peer])
-                        : '';
-
+                    $address_raw = isset($_POST['address_inline'][$id_peer]) ? trim($_POST['address_inline'][$id_peer]) : '';
                     $address = '';
+                    
                     if ($address_raw !== '') {
-                        // 🛑 A BRONCA DIDÁTICA NA EDIÇÃO
                         if (strpos($address_raw, '/') !== false && substr(trim($address_raw), -3) !== '/32') {
-                            $msg_erro .= "⚠️ <b>Peer ID {$id_peer}:</b> O WireGuard funciona apenas com IPs exclusivos por peer (/32). ";
-                            continue; // Pula esse peer e vai pro próximo sem salvar
+                            $msg_erro .= "⚠️ Aviso Peer ID {$id_peer}: O WireGuard funciona apenas com IPs exclusivos por peer (/32). ";
+                            continue;
                         }
-
-                        // Força a máscara correta
                         $ip_only = explode('/', $address_raw)[0];
                         $address = $ip_only . '/32';
                     }
@@ -1310,34 +1303,19 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     if (!isValidIPv4Cidr($address)) {
-                        $msg_erro .= "Endereço inválido para o peer ID {$id_peer}. Use IPv4/CIDR, ex: 10.6.0.2/32 ou 10.6.0.0/24. ";
+                        $msg_erro .= "Endereço inválido para o peer ID {$id_peer}. Use IPv4/CIDR. ";
                         continue;
                     }
 
-                    $stmt = $mysqli->prepare("
-                        SELECT public_key, ip_wg, config_text, status, id_nas
-                        FROM wg_ramais
-                        WHERE id = ?
-                        LIMIT 1
-                    ");
-                    if (!$stmt) {
-                        $msg_erro .= 'Erro prepare SELECT peer: ' . $mysqli->error;
-                        continue;
-                    }
+                    $stmt = $mysqli->prepare("SELECT public_key, ip_wg, config_text, status, id_nas FROM wg_ramais WHERE id = ? LIMIT 1");
+                    if (!$stmt) { $msg_erro .= 'Erro prepare SELECT peer: ' . $mysqli->error; continue; }
                     $stmt->bind_param('i', $id_peer);
-                    if (!$stmt->execute()) {
-                        $msg_erro .= 'Erro ao carregar peer: ' . $stmt->error;
-                        $stmt->close();
-                        continue;
-                    }
+                    $stmt->execute();
                     $res = $stmt->get_result();
                     $row = $res->fetch_assoc();
                     $stmt->close();
 
-                    if (!$row) {
-                        $msg_erro .= "Peer ID {$id_peer} não encontrado. ";
-                        continue;
-                    }
+                    if (!$row) { $msg_erro .= "Peer ID {$id_peer} não encontrado. "; continue; }
 
                     $public_key  = $row['public_key'];
                     $old_ip      = $row['ip_wg'];
@@ -1346,19 +1324,9 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     $id_nas      = (int)$row['id_nas'];
                     $newAllowed  = null;
 
-                    $stmtChk = $mysqli->prepare("
-                        SELECT id FROM wg_ramais WHERE ip_wg = ? AND id <> ? LIMIT 1
-                    ");
-                    if (!$stmtChk) {
-                        $msg_erro .= 'Erro prepare SELECT unicidade address: ' . $mysqli->error;
-                        continue;
-                    }
+                    $stmtChk = $mysqli->prepare("SELECT id FROM wg_ramais WHERE ip_wg = ? AND id <> ? LIMIT 1");
                     $stmtChk->bind_param('si', $address, $id_peer);
-                    if (!$stmtChk->execute()) {
-                        $msg_erro .= 'Erro ao verificar unicidade do endereço: ' . $stmtChk->error;
-                        $stmtChk->close();
-                        continue;
-                    }
+                    $stmtChk->execute();
                     $stmtChk->store_result();
                     if ($stmtChk->num_rows > 0) {
                         $msg_erro .= "Já existe outro peer com o endereço {$address}. ";
@@ -1367,106 +1335,118 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     $stmtChk->close();
 
+                    // BUSCA NAS NO BANCO
+                    $senha = '';
+                    $portassh = 22;
+                    $ipfall = '';
+                    
+                    if ($id_nas > 0) {
+                        $stmtNas = $mysqli->prepare("SELECT senha, portassh, ipfall FROM nas WHERE id = ? LIMIT 1");
+                        if ($stmtNas) {
+                            $stmtNas->bind_param('i', $id_nas);
+                            $stmtNas->execute();
+                            $resNas = $stmtNas->get_result();
+                            if ($rowNas = $resNas->fetch_assoc()) {
+                                $senha    = trim($rowNas['senha'] ?? '');
+                                $portassh = !empty($rowNas['portassh']) ? (int)$rowNas['portassh'] : 22;
+                                $ipfall   = trim($rowNas['ipfall'] ?? '');
+                            }
+                            $stmtNas->close();
+                        }
+                    }
+
+                    // INTEGRAÇÃO COM O DAEMON GO
                     if ($status === 'enabled') {
-                        $payload = [
+                        $old_ip_host = explode('/', $old_ip)[0];
+                        $target_ip = !empty($ipfall) ? $ipfall : $old_ip_host;
+
+                        if (!empty($target_ip)) {
+                            $payload_ssh = [
+                                'action'    => 'update-mikrotik-wg-ip',
+                                'target_ip' => $target_ip,
+                                'port'      => $portassh,
+                                'user'      => 'mkauth',
+                                'pass'      => $senha,
+                                'old_wg_ip' => $old_ip,  
+                                'new_wg_ip' => $address  
+                            ];
+                            
+                            $resp_ssh = wg_call($payload_ssh, $socketPath);
+                            
+                            // Blindagem de leitura 
+                            $resp_arr = is_string($resp_ssh) ? json_decode($resp_ssh, true) : json_decode(json_encode($resp_ssh), true);
+                            
+                            if (is_array($resp_arr)) {
+                                $go_ok = !empty($resp_arr['ok']) ? $resp_arr['ok'] : (!empty($resp_arr['OK']) ? $resp_arr['OK'] : false);
+                                $go_msg = !empty($resp_arr['message']) ? $resp_arr['message'] : (!empty($resp_arr['Message']) ? $resp_arr['Message'] : '');
+                            } else {
+                                $go_ok = false;
+                                $go_msg = 'A resposta do Go não pôde ser lida.';
+                            }
+
+                            // AQUI ESTÁ A BLINDAGEM: Limpamos TUDO que vem do Go pra não bugar a tela
+                            $clean_msg = strip_tags((string)$go_msg);
+                            $clean_msg = str_replace(["\r", "\n", "'", "\"", "\\"], " ", $clean_msg);
+
+                            if (!$go_ok) {
+                                $msg_extra .= "⚠️ AVISO: Atualizado no MK-Auth, mas falha ao alcançar a RB {$target_ip} (" . ($clean_msg ?: 'Erro desconhecido') . "). A alteração de endereço desse peer/ramal deve ser feita via arquivo .rsc disponível para cópia ou download. ";
+                            } else {
+                                $msg_extra .= "✅ " . ($clean_msg !== '' ? $clean_msg : "Atualizado na RB {$target_ip} com sucesso.") . " ";
+                            }
+                            
+                            usleep(500000); 
+                        } else {
+                            $msg_extra .= "⚠️ Aviso: Atualizado no MK-Auth, mas não houve tentativa SSH pois o IP de acesso à RB é inválido! A alteração de endereço desse peer/ramal deve ser feita via arquivo .rsc disponível para cópia ou download. ";
+                        }
+
+                        // ATUALIZA O SERVIDOR WIREGUARD LOCAL (MK-AUTH)
+                        $payload_wg = [
                             'action'     => 'update-client-address',
                             'publicKey'  => $public_key,
                             'allowedIPs' => $address,
                         ];
-                        $resp = wg_call($payload, $socketPath);
-
-                        file_put_contents(
-                            '/tmp/wg_edit_address.debug',
-                            date('c')
-                            . " EDIT_ADDRESS ID {$id_peer} STATUS {$status}"
-                            . " PUB {$public_key} OLDADDR {$old_ip} NEWADDR {$address}"
-                            . " PAYLOAD " . json_encode($payload)
-                            . " RESP: " . var_export($resp, true) . "\n",
-                            FILE_APPEND
-                        );
+                        $resp = wg_call($payload_wg, $socketPath);
 
                         if (empty($resp['ok'])) {
-                            $msg_erro .= "Erro ao aplicar novo address no WireGuard para o peer ID {$id_peer}. ";
+                            $msg_erro .= "⚠️ Erro ao aplicar novo address no WireGuard local para o peer ID {$id_peer}. ";
                             continue;
                         }
 
                         if (!empty($resp['data']['allowedIPs'])) {
-                            // Pegamos EXATAMENTE o que o Go mandou (IP do server + IP do client)
                             $newAllowed = trim($resp['data']['allowedIPs']);
                         }
+
                     } else {
-                        file_put_contents(
-                            '/tmp/wg_edit_address.debug',
-                            date('c')
-                            . " EDIT_ADDRESS ID {$id_peer} STATUS {$status} (SQL-only, no wg_call)"
-                            . " PUB {$public_key} OLDADDR {$old_ip} NEWADDR {$address}\n",
-                            FILE_APPEND
-                        );
+                        // Peer desativado
+                        file_put_contents('/tmp/wg_edit_address.debug', date('c') . " EDIT_ADDRESS ID {$id_peer} STATUS {$status} (SQL-only, no wg_call) PUB {$public_key} OLDADDR {$old_ip} NEWADDR {$address}\n", FILE_APPEND);
                     }
 
-                    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                    // MÁGICA PARA O OFFLINE (Sem a ajuda do Go)
-                    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                    // Se o status for disabled ou o Go falhar em devolver o $newAllowed:
+                    // MÁGICA PARA O OFFLINE
                     if (empty($newAllowed)) {
-                        // Vamos ler a linha do AllowedIPs atual do conf
                         if (preg_match('/^AllowedIPs\s*=\s*(.+)$/mi', $config_text, $matches)) {
                             $current_allowed = trim($matches[1]);
-                            // Trocamos APENAS o IP antigo pelo novo, deixando o IP do servidor intacto!
                             $newAllowed = str_replace($old_ip, $address, $current_allowed);
                         } else {
-                            $newAllowed = $address; // Fallback extremo
+                            $newAllowed = $address;
                         }
                     }
 
                     if (is_string($config_text) && $config_text !== '') {
-                        // Atualiza Address protegendo com ${1}
-                        $config_text = preg_replace(
-                            '/^(Address\s*=\s*).+$/mi',
-                            '${1}' . $address,
-                            $config_text
-                        );
-
-                        // Atualiza AllowedIPs com o que veio do Go (ou da nossa lógica offline)
+                        $config_text = preg_replace('/^(Address\s*=\s*).+$/mi', '${1}' . $address, $config_text);
                         if (!empty($newAllowed)) {
-                            $config_text = preg_replace(
-                                '/^(AllowedIPs\s*=\s*).+$/mi',
-                                '${1}' . $newAllowed,
-                                $config_text
-                            );
+                            $config_text = preg_replace('/^(AllowedIPs\s*=\s*).+$/mi', '${1}' . $newAllowed, $config_text);
                         }
-
-                        file_put_contents(
-                            '/tmp/wg_edit_address_config.debug',
-                            date('c') . " ID {$id_peer} OLDIP {$old_ip} NEWIP {$address}\n{$config_text}\n\n",
-                            FILE_APPEND
-                        );
                     }
 
-                    $stmtUp = $mysqli->prepare("
-                        UPDATE wg_ramais
-                        SET ip_wg = ?, allowed_ips = ?, config_text = ?, atualizado_em = NOW()
-                        WHERE id = ?
-                    ");
-                    if (!$stmtUp) {
-                        $msg_erro .= 'Erro prepare UPDATE address: ' . $mysqli->error;
-                        continue;
-                    }
-                    
-                    // Salvamos a string completinha no banco também
+                    // SALVA TUDO NO BANCO (wg_ramais E nas)
+                    $stmtUp = $mysqli->prepare("UPDATE wg_ramais SET ip_wg = ?, allowed_ips = ?, config_text = ?, atualizado_em = NOW() WHERE id = ?");
+                    if (!$stmtUp) { $msg_erro .= 'Erro prepare UPDATE address: ' . $mysqli->error; continue; }
                     $stmtUp->bind_param('sssi', $address, $newAllowed, $config_text, $id_peer);
-
-                    if (!$stmtUp->execute()) {
-                        $msg_erro .= 'Erro ao atualizar endereço no banco: ' . $stmtUp->error;
-                        $stmtUp->close();
-                        continue;
-                    }
+                    if (!$stmtUp->execute()) { $msg_erro .= 'Erro ao atualizar endereço no banco: ' . $stmtUp->error; $stmtUp->close(); continue; }
                     $stmtUp->close();
 
                     $ipwgHost = preg_replace('~/.*$~', '', $address);
-                    $stmtNasUpd = $mysqli->prepare("
-                        UPDATE nas SET nasname = ? WHERE id = ? LIMIT 1
-                    ");
+                    $stmtNasUpd = $mysqli->prepare("UPDATE nas SET nasname = ? WHERE id = ? LIMIT 1");
                     if ($stmtNasUpd) {
                         $stmtNasUpd->bind_param('si', $ipwgHost, $id_nas);
                         $stmtNasUpd->execute();
@@ -1476,10 +1456,15 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // MOSTRA A MENSAGEM FINAL (Mantive a redundância de variáveis do MK-Auth pra não falhar a notificação)
         if ($msg_erro === '') {
-            $_SESSION['wg_msg_sucesso'] = 'Endereço(s) WireGuard atualizado(s) com sucesso.';
+            $texto_final = ($msg_extra !== '') ? trim($msg_extra) : '✅ Endereço(s) WireGuard atualizado(s) com sucesso.';
+            
+            $_SESSION['wg_msg_sucesso'] = $texto_final;
+            $_SESSION['sucesso']        = $texto_final;
         } else {
             $_SESSION['wg_msg_erro'] = $msg_erro;
+            $_SESSION['erro']        = $msg_erro;
         }
 
         header('Location: ?tab=peers');
@@ -1684,9 +1669,13 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
             ? array_map('intval', $_POST['ramal_ids'])
             : [];
 
+        // 🎯 AQUI ESTÁ A MÁGICA: Captura exata do rádio (Força ser Inteiro)
+        // Se o JS não enviar nada, assumimos 1 (Oficial) por segurança, mas se enviar 0, ele obedece!
+        $atualizar_ip_nas = isset($_POST['atualizar_ip_nas']) ? (int)$_POST['atualizar_ip_nas'] : 1;
+
         file_put_contents(
             '/tmp/wg_flow.log',
-            date('c') . " ENTROU provisionar_ramais RAMAIS=" . json_encode($ramal_ids) . "\n",
+            date('c') . " ENTROU provisionar_ramais RAMAIS=" . json_encode($ramal_ids) . " MODO_RADIO={$atualizar_ip_nas}\n",
             FILE_APPEND
         );
 
@@ -1831,7 +1820,7 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     );
 
                     // ==============================================================
-                    // === ADICIONADO AQUI: MONTAR O PAYLOAD COM OU SEM O ENDPOINT ===
+                    // === MONTAR O PAYLOAD COM OU SEM O ENDPOINT ===
                     // ==============================================================
                     $payload = [
                         'action'  => 'create-client',
@@ -1917,7 +1906,8 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($stmtIns->execute()) {
                         $ok_count++;
 
-                        if (!empty($_POST['atualizar_ip_nas'])) {
+                        // 🎯 AQUI O CÓDIGO SÓ ATUALIZA A TABELA NAS SE O VALOR FOR ESTRITAMENTE 1 (Oficial)
+                        if ($atualizar_ip_nas === 1) {
                             $ipwgHost = preg_replace('~/.*$~', '', $address);
 
                             $sqlUpdNas = "UPDATE nas SET nasname = ? WHERE id = ? LIMIT 1";
@@ -1936,9 +1926,9 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
+            // 🎯 REDIRECIONAMENTO E MENSAGENS
             if ($ok_count > 0) {
-                $_SESSION['wg_msg_sucesso'] =
-                    "Provisionamento criado para {$ok_count} ramal(is). Falhas: {$err_count}.";
+                $_SESSION['wg_msg_sucesso'] = "Provisionamento criado para {$ok_count} ramal(is). Falhas: {$err_count}.";
                 header('Location: ?tab=provisionar');
                 exit;
             } else {

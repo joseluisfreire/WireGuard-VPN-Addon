@@ -211,6 +211,100 @@ function normalizar_conf_para_wg_import(string $conf): string {
     $conf_limpo = str_replace('"', '\"', $conf_limpo);
     return '/interface wireguard/wg-import config-string="' . $conf_limpo . '"';
 }
+// HELPER: GERADOR DE SCRIPT MIKROTIK (.RSC) IDEMPOTENTE
+if (!function_exists('wg_gerar_script_mikrotik')) {
+    function wg_gerar_script_mikrotik(string $config_text, int $id_nas, int $id_peer, string $safe_name): string {
+        $lines = preg_split("/\r\n|\r|\n/", $config_text);
+
+        $ifacePrivate = ''; $ifaceAddress = ''; $peerPublic = ''; $peerPsk = ''; 
+        $peerEndpoint = ''; $peerAllowed = ''; $peerKeep = '';
+
+        $section = '';
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || strpos($line, '#') === 0) continue;
+            
+            if (strcasecmp($line, '[Interface]') === 0) { $section = 'iface'; continue; } 
+            elseif (strcasecmp($line, '[Peer]') === 0) { $section = 'peer'; continue; }
+
+            $parts = explode('=', $line, 2);
+            if (count($parts) !== 2) continue;
+            
+            $k = strtolower(trim($parts[0]));
+            $v = trim($parts[1]);
+
+            if ($section === 'iface') {
+                if ($k === 'privatekey') $ifacePrivate = $v;
+                elseif ($k === 'address') $ifaceAddress = $v;
+            } elseif ($section === 'peer') {
+                if ($k === 'publickey') $peerPublic = $v;
+                elseif ($k === 'presharedkey') $peerPsk = $v;
+                elseif ($k === 'endpoint') $peerEndpoint = $v;
+                elseif ($k === 'allowedips') $peerAllowed = $v;
+                elseif ($k === 'persistentkeepalive') $peerKeep = $v;
+            }
+        }
+
+		$mtIfName       = 'wg-mkauth';
+		$mtComment      = 'mkauth-wireguard';
+		$mtRouteComment = 'mkauth-wireguard-route';
+
+        $rsc  = "";
+        $rsc .= "# WireGuard cliente gerado pelo MK-AUTH para " . $safe_name . "\n";
+        $rsc .= "# Ajuste nomes/endereços/conectividade conforme necessário antes de aplicar.\n\n";
+
+        $rsc .= "# 1. Limpeza de regras antigas (Idempotencia)\n";
+        $rsc .= ":do { /interface wireguard peers remove [find comment=\"" . $mtComment . "\"] } on-error={}\n";
+        $rsc .= ":do { /interface wireguard remove [find name=\"" . $mtIfName . "\"] } on-error={}\n";
+        $rsc .= ":do { /ip address remove [find comment=\"" . $mtComment . "\"] } on-error={}\n";
+		$rsc .= ":do { /ip route remove [find comment=\"" . $mtRouteComment . "\"] } on-error={}\n\n";
+
+        $rsc .= "# 2. Criacao da Interface\n";
+        $rsc .= "/interface wireguard add name=\"" . $mtIfName . "\" private-key=\"" . $ifacePrivate . "\" listen-port=0 comment=\"" . $mtComment . "\"\n\n";
+
+        if ($ifaceAddress !== '') {
+            $rsc .= "# 3. Configuracao de IP\n";
+            $rsc .= "/ip address add address=" . $ifaceAddress . " interface=" . $mtIfName . " comment=\"" . $mtComment . "\"\n\n";
+        }
+
+        $rsc .= "# 4. Configuracao do Peer (Servidor MK-Auth)\n";
+        $rsc .= "/interface wireguard peers add interface=" . $mtIfName . " public-key=\"" . $peerPublic . "\"";
+        if ($peerPsk !== '') $rsc .= " preshared-key=\"" . $peerPsk . "\"";
+        $rsc .= " allowed-address=" . $peerAllowed;
+        
+        if ($peerEndpoint !== '') {
+            $hp = explode(':', $peerEndpoint, 2);
+            if (count($hp) === 2) $rsc .= " endpoint-address=" . $hp[0] . " endpoint-port=" . (int)$hp[1];
+            else $rsc .= " endpoint-address=" . $peerEndpoint;
+        }
+        if ($peerKeep !== '') $rsc .= " persistent-keepalive=" . (int)$peerKeep;
+        $rsc .= " comment=\"" . $mtComment . "\"\n\n";
+
+        if ($ifaceAddress !== '' && $peerAllowed !== '') {
+            $ipParts = explode('/', $ifaceAddress, 2);
+            $ipOnly  = trim($ipParts[0]);
+
+            $serverIp = null;
+            $allowedParts = explode(',', $peerAllowed);
+            foreach ($allowedParts as $p) {
+                $p = trim($p);
+                if ($p === '' || strpos($p, ':') !== false) continue; 
+                $hp = explode('/', $p, 2);
+                if (!empty($hp[0])) {
+                    $serverIp = trim($hp[0]); 
+                    break;
+                }
+            }
+
+            if ($ipOnly !== '' && $serverIp !== null) {
+                $rsc .= "# 5. Rota Estatica\n";
+				$rsc .= "/ip route add dst-address=" . $serverIp . "/32 gateway=" . $mtIfName . " comment=\"" . $mtRouteComment . "\"\n";
+            }
+        }
+
+        return $rsc;
+    }
+}
 
 // ==============================================================================================
 // 🎨 DEPARTAMENTO 5: AJUDANTES VISUAIS (UI / BULMA)

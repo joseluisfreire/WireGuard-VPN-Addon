@@ -83,7 +83,11 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($acao === 'executar_otp_unitario') {
         header('Content-Type: application/json');
         $id_nas = isset($_POST['id_nas']) ? (int)$_POST['id_nas'] : 0;
-        
+        if ($id_nas <= 0) {
+			echo json_encode(['status' => 'error', 'msg' => 'ID do NAS inválido.']);
+			exit;
+		}
+		
         $q = $mysqli->query("
             SELECT n.nasname, n.ipfall, n.portassh, n.senha,
                    w.id as id_wg, w.peer_name, w.config_text, w.ip_wg
@@ -105,78 +109,13 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         
-        // --- GERAR SCRIPT MIKROTIK (.RSC) ---
-        $lines = preg_split("/\r\n|\r|\n/", $row['config_text']);
-        $ifacePrivate = ''; $ifaceAddress = ''; $peerPublic = ''; $peerPsk = ''; 
-        $peerEndpoint = ''; $peerAllowed = ''; $peerKeep = '';
-        
-        $section = '';
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || strpos($line, '#') === 0) continue;
-            if (strcasecmp($line, '[Interface]') === 0) { $section = 'iface'; continue; }
-            if (strcasecmp($line, '[Peer]') === 0) { $section = 'peer'; continue; }
-            
-            $parts = explode('=', $line, 2);
-            if (count($parts) !== 2) continue;
-            $k = strtolower(trim($parts[0]));
-            $v = trim($parts[1]);
-            
-            if ($section === 'iface') {
-                if ($k === 'privatekey') $ifacePrivate = $v;
-                elseif ($k === 'address') $ifaceAddress = $v;
-            } elseif ($section === 'peer') {
-                if ($k === 'publickey') $peerPublic = $v;
-                elseif ($k === 'presharedkey') $peerPsk = $v;
-                elseif ($k === 'endpoint') $peerEndpoint = $v;
-                elseif ($k === 'allowedips') $peerAllowed = $v;
-                elseif ($k === 'persistentkeepalive') $peerKeep = $v;
-            }
-        }
-        
-        $safe_name = preg_replace('/[^a-zA-Z0-9_-]+/', '_', $row['peer_name']) ?: 'peer';
-        $mtIfName  = 'wg-nas' . $id_nas;
-        $mtComment = 'WG-' . $safe_name;
-        
-        // SCRIPT: Remove os antigos primeiro e recria limpo!
-        $rsc  = "";
-        $rsc .= ":do { /interface wireguard peers remove [find comment=\"" . $mtComment . "\"] } on-error={}\n";
-        $rsc .= ":do { /interface wireguard remove [find name=\"" . $mtIfName . "\"] } on-error={}\n";
-        
-        $rsc .= "/interface wireguard add name=\"" . $mtIfName . "\" private-key=\"" . $ifacePrivate . "\" listen-port=0 comment=\"" . $mtComment . "\"\n";
-        
-        if ($ifaceAddress !== '') {
-            $rsc .= ":do { /ip address remove [find comment=\"" . $mtComment . "\"] } on-error={}\n";
-            $rsc .= "/ip address add address=" . $ifaceAddress . " interface=" . $mtIfName . " comment=\"" . $mtComment . "\"\n";
-        }
-        
-        $rsc .= "/interface wireguard peers add interface=" . $mtIfName . " public-key=\"" . $peerPublic . "\"";
-        if ($peerPsk !== '') $rsc .= " preshared-key=\"" . $peerPsk . "\"";
-        $rsc .= " allowed-address=" . $peerAllowed;
-        
-        if ($peerEndpoint !== '') {
-            $hp = explode(':', $peerEndpoint, 2);
-            if (count($hp) === 2) $rsc .= " endpoint-address=" . $hp[0] . " endpoint-port=" . (int)$hp[1];
-            else $rsc .= " endpoint-address=" . $peerEndpoint;
-        }
-        if ($peerKeep !== '') $rsc .= " persistent-keepalive=" . (int)$peerKeep;
-        $rsc .= " comment=\"" . $mtComment . "\"\n";
-        
-        if ($ifaceAddress !== '' && $peerAllowed !== '') {
-            $ipParts = explode('/', $ifaceAddress, 2);
-            $ipOnly  = trim($ipParts[0]);
-            $serverIp = null;
-            $allowedParts = explode(',', $peerAllowed);
-            foreach ($allowedParts as $p) {
-                if (strpos(trim($p), ':') !== false) continue;
-                $hp = explode('/', trim($p), 2);
-                if (!empty($hp[0])) { $serverIp = trim($hp[0]); break; }
-            }
-            if ($ipOnly !== '' && $serverIp !== null) {
-                $rsc .= ":do { /ip route remove [find comment=\"Rota MK-Auth WG " . $mtComment . "\"] } on-error={}\n";
-                $rsc .= "/ip route add dst-address=" . $serverIp . "/32 gateway=" . $mtIfName . " comment=\"Rota MK-Auth WG " . $mtComment . "\"\n";
-            }
-        }
+		$safe_name = preg_replace('/[^a-zA-Z0-9_-]+/', '_', $row['peer_name']) ?: 'peer';
+		$rsc = wg_gerar_script_mikrotik(
+			$row['config_text'],
+			(int)$id_nas,
+			(int)$row['id_wg'],
+			$safe_name
+		);
         
         // --- MANDAR PRO DAEMON GO ---
         $ips_to_test = [];

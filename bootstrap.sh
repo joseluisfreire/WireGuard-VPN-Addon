@@ -68,9 +68,9 @@ WG_GROUP="wgmkauth"
 WG_IFACE="wg0"
 WG_CONF_DIR="/etc/wireguard"
 SOCKET_PATH="/run/wgmkauth.sock"
-DAEMON_BIN="/usr/local/sbin/wg-mkauthd"
-WG_BIN="/usr/local/bin/wg"
-WG_QUICK_BIN="/usr/local/bin/wg-quick"
+DAEMON_BIN="/usr/sbin/wg-mkauthd"
+WG_BIN="/usr/bin/wg"
+WG_QUICK_BIN="/usr/bin/wg-quick"
 LOG_FILE="/var/log/wg-mkauthd.log"
 INITD_SCRIPT="/etc/init.d/wg-mkauthd"
 ADDON_DIR="${MKAUTH_DIR}/addons/wireguard"
@@ -290,7 +290,7 @@ export PATH
 # Short-Description: WG-MKAuth unix socket daemon
 ### END INIT INFO
 
-DAEMON=/usr/local/sbin/wg-mkauthd
+DAEMON=/usr/sbin/wg-mkauthd
 NAME=wg-mkauthd
 PIDFILE=/var/run/${NAME}.pid
 DAEMON_OPTS="--auto-bring-up --auto-bring-down"

@@ -91,7 +91,7 @@ Apesar do WireGuard estar nativo tanto no kernel Linux quanto no RouterOS, o **M
 |---|---|---|
 | **WireGuard VPN Addon** | Interface PHP/JS/CSS integrada ao MK-AUTH | [Este repo](https://github.com/joseluisfreire/WireGuard-VPN-Addon) |
 | **wg-mkauthd** | Daemon em Go — bridge entre PHP e wireguard-tools via Unix socket | [wg-mkauthd](https://github.com/joseluisfreire/wg-mkauthd) |
-| **wireguard-tools-fork** | `wg` e `wg-quick` compilados estaticamente (zero dependências) | [wireguard-tools](https://github.com/joseluisfreire/wireguard-tools) |
+| **wireguard-tools (fork)** | `wg` e `wg-quick` compilados estaticamente (zero dependências) | [wireguard-tools](https://github.com/joseluisfreire/wireguard-tools) |
 
 
 ## ⚡ Instalação e Gerenciamento
@@ -174,7 +174,7 @@ Inicia o daemon e valida a instalação
     ├── manifest.json                     # Metadados do addon (nome, versão, autor)
     ├── addons.class.php                  # Symlink → /opt/mk-auth/include/addons.inc.hhvm
     ├── index.php                         # Interface principal do addon
-    ├── login.hhvm                        # Redir/autenticação correta ao termno da seção
+    ├── login.hhvm                        # Redir ao término da seção
     ├── wg_addon.css                      # Estilos customizados do frontend
     ├── wg_addon.js                       # JavaScript do frontend
     ├── wireguard-logo.png                # Logo WireGuard
@@ -197,11 +197,11 @@ Inicia o daemon e valida a instalação
 ### Binários instalados no sistema
 
 
-/usr/local/bin/
+/usr/bin/
 ├── wg                                    # WireGuard CLI (binário estático)
 └── wg-quick                              # Helper para interfaces WireGuard (estático)
 
-/usr/local/sbin/
+/usr/sbin/
 └── wg-mkauthd                            # Daemon Go (binário estático)
 ```
 

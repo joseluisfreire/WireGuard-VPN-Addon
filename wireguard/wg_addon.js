@@ -823,3 +823,15 @@ function revelarPerigo(id_peer) {
         }
     }
 }
+// ==============================================================
+// MODAL DE INFORMAÇÕES DO OTP (Aba Provisionar)
+// ==============================================================
+function abrirModalInfoOtp() {
+    var modal = document.getElementById('modal_info_otp');
+    if(modal) modal.classList.add('is-active');
+}
+
+function fecharModalInfoOtp() {
+    var modal = document.getElementById('modal_info_otp');
+    if(modal) modal.classList.remove('is-active');
+}

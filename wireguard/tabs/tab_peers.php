@@ -389,7 +389,7 @@
 				  <div class="level-item">
 					<a href="#" title="Efetivar Rota (Atualizar IP dos NAS selecionados no MK-Auth)" onclick="if(confirm('Tem certeza que deseja EFETIVAR os peers selecionados?\nIsso atualizará o IP no cadastro do MK-Auth, fazendo a comunicação ocorrer exclusivamente pelo WireGuard.')) { return submitPeersBulk('efetivar_ip'); } return false;">
 					  <span class="icon" style="color: #8b5cf6;">
-						<i class="bi-arrow-left-right" style="font-size: 30px"></i>
+						<i class="bi-arrow-repeat" style="font-size: 30px"></i>
 					  </span>
 					</a>
 				  </div>

@@ -5,145 +5,137 @@
         <input type="hidden" name="acao" value="provisionar_ramais">
 
         <!-- ==============================================================
-             CABEÇALHO WIZARD: FRAME ESTÁTICO COM PAINEL VISUAL DE IP
+             NOVO LAYOUT: 3 CARDS LADO A LADO (REDE + OFICIAL + PARALELO)
              ============================================================== -->
-        <div class="notification" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); border: none; color: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(14,165,233,0.3); padding: 1.5rem; margin-bottom: 2rem; width: 100%; display: flex; align-items: center; justify-content: space-between;">
+        <div class="columns is-desktop mb-5 is-variable is-3">
             
-            <!-- ESQUERDA: CÓPIA LITERAL -->
-            <div style="display: flex; align-items: center; gap: 1.5rem;">
-                <div style="font-size: 3rem; opacity: 0.9; line-height: 1;">
-                    <i class="bi bi-diagram-3-fill"></i>
-                </div>
-                <div>
-                    <h3 class="title is-4" style="color: white; margin-bottom: 0.25rem; display: flex; align-items: center;">
-                        Rede WireGuard: <span style="font-family: monospace; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 6px; letter-spacing: 1px; margin-left: 10px; font-weight: normal; font-size: 1.2rem;"><?php echo htmlspecialchars($wg_base_cidr ?: 'Não configurada'); ?></span>
-                    </h3>
-                    <p style="opacity: 0.95; font-size: 1rem; margin-top: 0.5rem; margin-bottom: 0;">
-                        IP do Servidor: <strong><?php echo htmlspecialchars($wg_server_host); ?></strong> &nbsp;|&nbsp; 
-                        Capacidade: <strong><?php echo $wg_max_peers; ?> peers</strong>
-                    </p>
-                </div>
-            </div>
+			<!-- CARD 1: REDE E ESTRATÉGIA DE IP (Borda Azul) -->
+			<div class="column is-4">
+				<div class="box" style="border-top: 4px solid #0ea5e9; border-radius: 12px; height: 100%; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 1.25rem;">
+					
+					<!-- Dados da Rede -->
+					<div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem;">
+						<div style="background: #e0f2fe; color: #0284c7; padding: 8px 10px; border-radius: 8px; font-size: 1.25rem; line-height: 1;">
+							<i class="bi bi-diagram-3-fill"></i>
+						</div>
+						<h3 class="title is-6 mb-0" style="color: #0f172a; margin-right: auto;">Rede WireGuard</h3>
+						<span style="font-family: monospace; background: #f1f5f9; color: #0f172a; padding: 4px 10px; border-radius: 6px; font-size: 1.15rem; font-weight: 700; border: 1px solid #cbd5e1; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);">
+							<?php echo htmlspecialchars($wg_base_cidr ?: 'Não configurada'); ?>
+						</span>
+					</div>
+					
+					<!-- Divisão Lado a Lado -->
+					<div style="display: flex; gap: 1rem; margin-top: auto; flex: 1;">
+						
+						<!-- Coluna Esquerda: Servidor e Capacidade -->
+						<div style="flex: 1; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e1; font-size: 0.85rem; display: flex; flex-direction: column; justify-content: center;">
+							<div style="display: flex; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">
+								<span class="has-text-grey">Servidor:</span>
+								<strong style="color: #0f172a; font-family: monospace;"><?php echo htmlspecialchars($wg_server_host); ?></strong>
+							</div>
+							<div style="display: flex; justify-content: space-between;">
+								<span class="has-text-grey">Capacidade:</span>
+								<strong style="color: #0f172a;"><?php echo $wg_max_peers; ?> peers</strong>
+							</div>
+						</div>
 
-            <!-- DIREITA: Painel Interativo (Agora com ícones de RBs reais) -->
-            <div style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(8px); padding: 0.8rem 1.2rem; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 8px 16px rgba(0,0,0,0.1);">
-                
-                <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px;">
-                    <i class="bi bi-hdd-network" style="color: #fde047; font-size: 1.1rem;"></i>
-                    <span style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #fff;">
-                        Estratégia de IPs p/ RBs
-                    </span>
-                    <i class="bi bi-question-circle-fill" title="Define como o WireGuard irá gerar os endereços de IP para as RBs conectadas." style="cursor: help; opacity: 0.8; font-size: 0.85rem;"></i>
-                </div>
+						<!-- Coluna Direita: Estratégia de IPs -->
+						<div style="flex: 1.2; display: flex; flex-direction: column; justify-content: center;">
+							<div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+								<i class="bi bi-hdd-network" style="color: #0ea5e9; font-size: 0.9rem;"></i>
+								<span style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; line-height: 1.2;">
+									Alocação de IPs p/ RBs
+								</span>
+							</div>
+							
+							<!-- RADIO: SEQUENCIAL -->
+							<label title="IPs atribuídos em ordem crescente. Você poderá alterar o IP manualmente na aba Peers a qualquer momento." style="cursor: pointer; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+								<div style="display: flex; align-items: center; color: #334155; font-weight: 600; font-size: 0.85rem;">
+									<input type="radio" name="alloc_mode" value="seq" required style="margin-right: 8px; transform: scale(1.2); accent-color: #0ea5e9;"> Sequencial
+								</div>
+								<div style="font-size: 0.78rem; color: #64748b; font-family: monospace; font-weight: 800; letter-spacing: 0px;">.2→.3→.4</div>
+							</label>
+							
+							<!-- RADIO: ALEATÓRIO -->
+							<label title="IPs atribuídos aleatoriamente dentro do range da rede. Você poderá alterar o IP manualmente na aba Peers a qualquer momento." style="cursor: pointer; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
+								<div style="display: flex; align-items: center; color: #334155; font-weight: 600; font-size: 0.85rem;">
+									<input type="radio" name="alloc_mode" value="rand" required style="margin-right: 8px; transform: scale(1.2); accent-color: #0ea5e9;"> Aleatório
+								</div>
+								<div style="font-size: 0.78rem; color: #64748b; font-family: monospace; font-weight: 800; letter-spacing: 0px;">.14···.89</div>
+							</label>
 
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    
-                    <!-- OPÇÃO 1: SEQUENCIAL -->
-                    <label style="cursor: pointer; padding: 0.5rem 0.8rem; border-radius: 8px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.15); transition: transform 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 140px;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                        <div style="display: flex; align-items: center; margin-bottom: 6px; color: white; font-weight: 700; font-size: 0.85rem;">
-                            <input type="radio" name="alloc_mode" value="seq" required style="margin-right: 6px; transform: scale(1.2);"> Sequencial
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px; opacity: 0.95;">
-                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
-                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
-                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #bbf7d0;">.2</span>
-                            </div>
-                            <i class="bi bi-arrow-right" style="font-size: 0.7rem; color: rgba(255,255,255,0.4);"></i>
-                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
-                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
-                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #bbf7d0;">.3</span>
-                            </div>
-                            <i class="bi bi-arrow-right" style="font-size: 0.7rem; color: rgba(255,255,255,0.4);"></i>
-                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
-                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
-                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #bbf7d0;">.4</span>
-                            </div>
-                        </div>
-                    </label>
+						</div>
+						
+					</div>
+				</div>
+			</div>
 
-                    <!-- OPÇÃO 2: ALEATÓRIO -->
-                    <label style="cursor: pointer; padding: 0.5rem 0.8rem; border-radius: 8px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.15); transition: transform 0.2s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 140px;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                        <div style="display: flex; align-items: center; margin-bottom: 6px; color: white; font-weight: 700; font-size: 0.85rem;">
-                            <input type="radio" name="alloc_mode" value="rand" required style="margin-right: 6px; transform: scale(1.2);"> Aleatório
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px; opacity: 0.95;">
-                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
-                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
-                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #fef08a;">.14</span>
-                            </div>
-                            <i class="bi bi-three-dots" style="font-size: 0.7rem; color: rgba(255,255,255,0.4);"></i>
-                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
-                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
-                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #fef08a;">.89</span>
-                            </div>
-                            <i class="bi bi-three-dots" style="font-size: 0.7rem; color: rgba(255,255,255,0.4);"></i>
-                            <div style="display: flex; flex-direction: column; align-items: center; line-height: 1;">
-                                <i class="bi bi-hdd-network" style="font-size: 1.1rem; color: rgba(255,255,255,0.8); margin-bottom: 2px;"></i>
-                                <span style="font-size: 0.65rem; font-family: monospace; font-weight: bold; color: #fef08a;">.21</span>
-                            </div>
-                        </div>
-                    </label>
+			<!-- CARD 2: EM PRODUÇÃO (Borda Verde) -->
+			<div class="column is-4">
+				<label class="box" style="border-top: 4px solid #16a34a; border-radius: 12px; height: 100%; display: flex; flex-direction: column; cursor: pointer; background: #f0fdf4; box-shadow: 0 4px 15px rgba(34, 197, 94, 0.08); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+					<div class="is-flex is-align-items-center mb-3">
+						<input type="radio" name="atualizar_ip_nas" value="1" required style="transform: scale(1.3); margin-right: 12px; accent-color: #166534;">
+						<h3 class="title is-6 mb-0" style="color: #166534; display: flex; align-items: center;">
+							<i class="bi bi-diagram-3" style="margin-right: 6px;"></i> Integração Direta
+						</h3>
+					</div>
+					<div style="margin-left: 28px;">
+						<p class="has-text-grey-dark" style="font-size: 0.85rem; line-height: 1.6;">
+							O IP do MK será <strong>substituído imediatamente</strong> pelo novo endereço da rede WireGuard no cadastro do sistema em "Controle de Ramais". Use a varinha mágica na aba "Peers" ou use o script .rsc diretamente no terminal da rb para subir o túnel.
+							Após o provisionamento, o status do túnel será exibido assim:
+						</p>
+						<!-- Card 2 - preview -->
+						<div class="mt-2" style="display: flex; flex-direction: column; gap: 6px;">
+							<div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; margin-top: 8px;">
+								<span style="font-size: 0.72rem; color: #64748b;">Túnel WireGuard:</span>
+								<span class="tag" style="background-color: #16a34a; color: #fff; font-weight: 600; font-size: 0.72rem;">
+									<i class="bi bi-diagram-3"></i>&nbsp;Em Produção
+								</span>
+								&nbsp;|&nbsp;
+								<span style="font-size: 0.72rem; color: #64748b;">IP do MK:</span>
+								<code style="font-size: 0.72rem; background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px;">CAMPO</code>
+								<span style="font-size: 0.68rem; color: #16a34a;">← atualizado</span>
+							</div>
+						</div>
+					</div>
+				</label>
+			</div>
 
-                </div>
-            </div>
+			<!-- CARD 3: EM PARALELO (Borda Amarela) -->
+			<div class="column is-4">
+				<label class="box" style="border-top: 4px solid #eab308; border-radius: 12px; height: 100%; display: flex; flex-direction: column; cursor: pointer; background: #fefce8; box-shadow: 0 4px 15px rgba(234, 179, 8, 0.08); transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+					<div class="is-flex is-align-items-center mb-3">
+						<input type="radio" name="atualizar_ip_nas" value="0" required style="transform: scale(1.3); margin-right: 12px; accent-color: #ca8a04;">
+						<h3 class="title is-6 mb-0" style="color: #854d0e; display: flex; align-items: center;">
+							<i class="bi bi-diagram-2" style="margin-right: 6px;"></i> Migração
+						</h3>
+					</div>
+					<div style="margin-left: 28px;">
+						<p class="has-text-grey-dark" style="font-size: 0.85rem; line-height: 1.6;">
+							O IP do MK <strong>não será alterado</strong>. O túnel WireGuard é criado silenciosamente em paralelo, permitindo <strong>homologação e testes</strong> sem impactar a conexão atual da RouterBoard com o MK-AUTH.
+						</p>
+						<p class="has-text-grey-dark mt-2" style="font-size: 0.82rem; line-height: 1.5;">
+							Use o botão <span style="color: #8b5cf6; font-weight: 600;"><i class="bi-arrow-repeat" style="font-size: 1rem; vertical-align: middle;"></i> Efetivar</span> na aba "Peers" para promover o túnel à produção.
+						</p>
+						<!-- Card 3 - preview -->
+						<div class="mt-2" style="display: flex; flex-direction: column; gap: 6px;">
+							<div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; margin-top: 8px;">
+								<span style="font-size: 0.72rem; color: #64748b;">Túnel WireGuard:</span>
+								<span class="tag is-warning is-light" style="font-weight: 600; font-size: 0.72rem;">
+									<i class="bi bi-diagram-2" style="color: #ca8a04;"></i>&nbsp;Em Paralelo
+								</span>
+								&nbsp;|&nbsp;
+								<span style="font-size: 0.72rem; color: #64748b;">IP do MK:</span>
+								<code style="font-size: 0.72rem; background: #fef9c3; color: #854d0e; padding: 2px 6px; border-radius: 4px;">CAMPO</code>
+								<span style="font-size: 0.68rem; color: #ca8a04;">← inalterado</span>
+							</div>
+						</div>
+					</div>
+				</label>
+			</div>
+
         </div>
-        <!-- FIM DO BANNER AZUL -->
-
-        <!-- ==============================================================
-             CAIXA BRANCA: CARDS DE DECISÃO DE PROVISIONAMENTO
-             ============================================================== -->
-        <div class="box custom-card" style="border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); padding: 2rem; background: #fafafa;">
-            
-            <div class="columns is-desktop mb-5">
-                
-                <!-- OPÇÃO 1: OFICIAL (Verde) -->
-                <div class="column is-6">
-                    <label class="box" style="height: 100%; border: 2px solid #bbf7d0; border-left: 8px solid #22c55e; background: #f0fdf4; cursor: pointer; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(34, 197, 94, 0.1);">
-                        <div class="is-flex is-align-items-center mb-3">
-                            <input type="radio" name="atualizar_ip_nas" value="1" required style="transform: scale(1.5); margin-right: 15px;">
-                            <h3 class="title is-5 mb-0" style="color: #166534; display: flex; align-items: center;">
-                                <i class="bi bi-check-circle-fill" style="margin-right: 8px;"></i>
-                                Integração Direta<span class="tag is-success is-light ml-2" style="font-weight: 700; border: 1px solid #bbf7d0; font-size: 0.9rem;">Oficial</span>
-                            </h3>
-                        </div>
-                        <div class="has-text-grey-dark" style="margin-left: 34px; font-size: 0.9rem; line-height: 1.5;">
-                            <p>
-                                Crie e configure o túnel para a integração das suas RBs MikroTik com o sistema MK-Auth. O novo IP gerado pelo WireGuard será atualizado <strong>IMEDIATAMENTE</strong> em "Controle de Ramais", gravando no campo "IP do MK" das RBs selecionadas.
-                            </p>
-                            <p class="mt-3" style="padding-top: 10px; border-top: 1px dashed rgba(34, 197, 94, 0.3);">
-                                <strong style="color: #15803d;"><i class="bi bi-magic" style="margin-right: 4px;"></i> Sobre o OTP (One Touch Provisioning):</strong> 
-                                Para que a "varinha mágica" funcione corretamente, o ramal precisa ter os dados essenciais de cadastro validados (IP Fallback, Senha do user mkauth e/ou 
-                                <a href="https://mk-auth.com.br/page/configurar-ssh" target="_blank" rel="noopener noreferrer" style="color: #15803d; text-decoration: underline; font-weight: 600; position: relative; z-index: 10;" onclick="event.stopPropagation();" title="Abrir Manual MK-Auth">chave SSH devidamente importada <i class="bi bi-box-arrow-up-right" style="font-size: 0.75rem; margin-left: 2px;"></i></a>). 
-                                Garantindo o correto preenchimento desses dados, basta clicar na varinha mágica para o sistema acessar a RB e injetar todas as configurações!
-                            </p>
-                        </div>
-                    </label>
-                </div>
-
-                <!-- OPÇÃO 2: PARALELO (Amarelo) -->
-                <div class="column is-6">
-                    <label class="box" style="height: 100%; border: 2px solid #fef08a; border-left: 8px solid #eab308; background: #fefce8; cursor: pointer; display: flex; flex-direction: column; box-shadow: 0 4px 10px rgba(234, 179, 8, 0.1);">
-                        <div class="is-flex is-align-items-center mb-3">
-                            <input type="radio" name="atualizar_ip_nas" value="0" required style="transform: scale(1.5); margin-right: 15px;">
-                            <h3 class="title is-5 mb-0" style="color: #854d0e; display: flex; align-items: center;">
-                                <i class="bi bi-diagram-2" style="margin-right: 8px;"></i>
-                                Migração 
-                                <span class="tag is-warning is-light ml-2" style="font-weight: 700; border: 1px solid #fef08a; color: #854d0e; font-size: 0.9rem;">Em Paralelo</span>
-                            </h3>
-                        </div>
-                        <div class="has-text-grey-dark" style="margin-left: 34px; font-size: 0.9rem; line-height: 1.5;">
-                            <p>
-                                O IP do MK em "Controle de Ramais" <strong>não será alterado agora</strong>. O WireGuard será configurado de forma silenciosa. Ideal para RBs em produção que já possuem túneis antigos (PPTP, OVPN, L2TP). Crie o túnel, garanta que ele conectou e, só então, vá na aba "Peers" e clique em <strong>"Efetivar Rota"</strong>, oficializando a migração com total segurança.
-                            </p>
-                            <p class="mt-3" style="padding-top: 10px; border-top: 1px dashed rgba(234, 179, 8, 0.4);">
-                                <strong style="color: #854d0e;"><i class="bi bi-magic" style="margin-right: 4px;"></i> Sobre o OTP (One Touch):</strong> 
-                                Neste modo, a mágica utilizará o túnel antigo já existente no cadastro para acessar a RB via SSH e injetar a nova VPN. Caso a conexão por essa rota primária falhe, o Addon utilizará o IP Fallback como último recurso.
-                            </p>
-                        </div>
-                    </label>
-                </div>
-                
-            </div> <!-- FIM DAS COLUNAS DE CARDS -->
+        <!-- FIM DOS CARDS -->
         
         <!-- ==============================================================
              A TABELA DE RAMAIS MESTRA (REORDENADA)
@@ -158,7 +150,7 @@
                         <th width="16%">Nome do Ramal</th>
                         <th width="15%" class="has-text-centered" title="Status de operação do Túnel">Túnel Wireguard</th>
                         <th width="13%" class="has-text-centered">IP do MK</th>
-                        <th width="13%" class="has-text-centered">IP Fallback (SSH)</th>
+                        <th width="13%" class="has-text-centered">IP Fallback</th>
                         <th width="10%" class="has-text-centered">Porta SSH</th>
                         <th width="14%" class="has-text-centered">Senha MK-Auth</th>
                         <th width="15%" class="has-text-centered">Validação OTP</th>
@@ -207,8 +199,10 @@
                                     <span class="tag is-light" style="font-weight: 600;" title="Ainda não existe túnel para esta RB">Não Configurado</span>
                                 <?php elseif ($is_disabled): ?>
                                     <span class="tag is-danger is-light" style="font-weight: 600;" title="Túnel desativado! Habilite na aba peers!"><i class="bi bi-x-circle mr-1"></i> Desativado</span>
-                                <?php elseif ($ip_espelhado_ok): ?>
-                                    <span class="tag is-success is-light" style="font-weight: 600; border: 1px solid #bbf7d0;" title="Túnel em operação, IP do MK-Auth configurado e ativo"><i class="bi bi-check-circle-fill mr-1" style="color: #22c55e;"></i> Oficial</span>
+								<?php elseif ($ip_espelhado_ok): ?>
+									<span class="tag" style="background-color: #16a34a; color: #ffffff; font-weight: 600; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);" title="Túnel em operação, IP do MK-Auth configurado e ativo">
+										<i class="bi bi-diagram-3-fill" style="color: #ffffff; margin-right: 5px;"></i> Em Produção
+									</span>
                                 <?php else: ?>
                                     <span class="tag is-warning is-light" style="font-weight: 600; border: 1px solid #fef08a;" title="Túnel gerado, mas ainda falta 'Efetivar Rota' na aba Peers"><i class="bi bi-diagram-2 mr-1" style="color: #ca8a04;"></i> Em Paralelo</span>
                                 <?php endif; ?>
@@ -275,7 +269,7 @@
         </div>
 
 		<div class="mt-4">
-			<div class="field is-grouped">
+			<div class="field is-grouped is-align-items-center">
 				<p class="control">
 					<button type="button" class="button is-success" onclick="submitProvisionarRamais()" style="font-weight: 600;">
 						<span class="icon is-small"><i class="bi bi-plus-lg"></i></span>
@@ -285,15 +279,80 @@
 				<p class="control">
 					<button type="button" class="button is-info is-light" onclick="testarSshEmMassa()" style="font-weight: 600; border: 1px solid #0ea5e9;" title="Testar conexão SSH dos ramais selecionados">
 						<span class="icon is-small"><i class="bi bi-terminal-fill"></i></span>
-						<span>Testar SSH em Lote</span>
+						<span>Validar OTP</span>
 					</button>
 				</p>
+                <!-- BOTÃO DE INFO DO OTP -->
+                <p class="control ml-2">
+                    <button type="button" class="button is-ghost has-text-info px-2" onclick="abrirModalInfoOtp()" title="O que é a validação OTP?" style="text-decoration: none; border-radius: 50%;">
+                        <i class="bi bi-info-circle-fill is-size-4"></i>
+                    </button>
+                </p>
 			</div>
 			
 			<div class="is-size-7 has-text-grey mt-2">
-				<i class="bi bi-info-circle"></i> <strong>Provisionar Rb:</strong> Cria o peer WireGuard VPN para RouterBoard no servidor MK-Auth. | <strong>Testar SSH:</strong> Valida as credenciais simulando conexão com os IPs informados.
+				<i class="bi bi-info-circle"></i> <strong>Provisionar Rb:</strong> Cria o peer WireGuard VPN para RouterBoard no servidor MK-Auth. | <strong>Valida OTP:</strong> Testa as credenciais simulando conexão com as Rb's.
 			</div>
 		</div>
     </form>
-</div>
+
+    <!-- ==============================================================
+         MODAL: EXPLICAÇÃO DO OTP (One Touch Provisioning)
+         ============================================================== -->
+	<div class="modal" id="modal_info_otp">
+		<div class="modal-background" onclick="fecharModalInfoOtp()" style="background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);"></div>
+		<div class="modal-card" style="border-radius: 12px; overflow: hidden; width: 600px; max-width: 95%;">
+			<header class="modal-card-head" style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+				<p class="modal-card-title has-text-weight-bold" style="color: #0f172a; font-size: 1.25rem;">
+					<i class="bi bi-magic" style="color: #f59e0b; margin-right: 8px;"></i> Sobre o OTP (One Touch Provisioning)
+				</p>
+				<button class="delete" aria-label="close" onclick="fecharModalInfoOtp()" type="button"></button>
+			</header>
+			<section class="modal-card-body" style="color: #475569; line-height: 1.6;">
+				<p class="mb-4">
+					O <strong>OTP</strong> é a funcionalidade mágica do Addon que acessa a sua RouterBoard via SSH e injeta todas as configurações do WireGuard automaticamente, sem você precisar abrir o WinBox.
+				</p>
+
+				<!-- BLOCO DE ATENÇÃO: PRÉ-REQUISITO SSH -->
+				<div style="background: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #f97316; border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem;">
+					<div style="display: flex; align-items: flex-start; gap: 10px;">
+						<i class="bi bi-shield-lock-fill" style="color: #f97316; font-size: 1.2rem; margin-top: 2px; flex-shrink: 0;"></i>
+						<div>
+							<p style="font-weight: 700; color: #9a3412; margin-bottom: 4px; font-size: 0.9rem;">Pré-requisito obrigatório na RouterBoard</p>
+							<p style="font-size: 0.85rem; color: #7c3a1e; line-height: 1.6; margin-bottom: 8px;">
+								Para o OTP funcionar, a RouterBoard precisa estar configurada com o <strong>usuário <code>mkauth</code></strong> e a <strong>chave SSH do MK-Auth importada</strong>. Sem isso, a conexão SSH será recusada e o provisionamento automático falhará.
+							</p>
+							<a href="https://mk-auth.com.br/page/configurar-ssh" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; background: #f97316; color: #ffffff; font-size: 0.82rem; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-decoration: none;">
+								<i class="bi bi-box-arrow-up-right"></i> Ver documentação oficial de configuração SSH
+							</a>
+						</div>
+					</div>
+				</div>
+				
+				<h4 class="title is-6 mb-2" style="color: #1e293b;">Como o sistema sabe qual IP acessar?</h4>
+				<div class="content is-small">
+					<ul>
+						<li>
+							<strong>Modo Em Produção:</strong> Para a mágica funcionar, o ramal precisa ter os dados validados: <strong class="has-text-info">IP Fallback</strong> (ou IP do MK), <strong>Senha</strong> e/ou <a href="https://mk-auth.com.br/page/configurar-ssh" target="_blank" style="color: #2563eb; text-decoration: underline;">chave SSH</a>.
+						</li>
+						<li>
+							<strong>Modo Em Paralelo:</strong> A mágica utilizará o túnel antigo (PPTP, OVPN) já existente para acessar a RB. Caso falhe, utilizará o IP Fallback como último recurso.
+						</li>
+					</ul>
+				</div>
+
+				<div class="notification is-info is-light mt-4" style="padding: 1rem;">
+					<div style="display: flex; align-items: flex-start; gap: 10px;">
+						<i class="bi bi-lightbulb-fill is-size-5" style="color: #0ea5e9;"></i>
+						<span style="font-size: 0.9rem;">
+							Dica: Sempre utilize o botão <strong>"Testar SSH em Lote"</strong> antes de provisionar. Se a coluna <em>Validação OTP</em> ficar verde, o OTP funcionará perfeitamente!
+						</span>
+					</div>
+				</div>
+			</section>
+			<footer class="modal-card-foot" style="justify-content: flex-end; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
+				<button class="button is-info" onclick="fecharModalInfoOtp()" type="button">Entendi</button>
+			</footer>
+		</div>
+	</div>
 

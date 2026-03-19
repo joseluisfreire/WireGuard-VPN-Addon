@@ -1,3 +1,4 @@
+<!-- MODAL About -->
 <div class="modal" id="about-wg-popup">
   <div class="modal-background"
        onclick="document.getElementById('about-wg-popup').classList.remove('is-active');"></div>
@@ -146,3 +147,62 @@
   </div>
 </div>
 
+<!-- ==============================================================
+	 MODAL: EXPLICAÇÃO DO OTP (One Touch Provisioning)
+	 ============================================================== -->
+<div class="modal" id="modal_info_otp">
+	<div class="modal-background" onclick="fecharModalInfoOtp()" style="background-color: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px);"></div>
+	<div class="modal-card" style="border-radius: 12px; overflow: hidden; width: 600px; max-width: 95%;">
+		<header class="modal-card-head" style="background-color: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+			<p class="modal-card-title has-text-weight-bold" style="color: #0f172a; font-size: 1.25rem;">
+				<i class="bi bi-magic" style="color: #f59e0b; margin-right: 8px;"></i> Sobre o OTP (One Touch Provisioning)
+			</p>
+			<button class="delete" aria-label="close" onclick="fecharModalInfoOtp()" type="button"></button>
+		</header>
+		<section class="modal-card-body" style="color: #475569; line-height: 1.6;">
+			<p class="mb-4">
+				O <strong>OTP</strong> é a funcionalidade mágica do Addon que acessa a sua RouterBoard via SSH e injeta todas as configurações do WireGuard automaticamente, sem você precisar abrir o WinBox.
+			</p>
+
+			<!-- BLOCO DE ATENÇÃO: PRÉ-REQUISITO SSH -->
+			<div style="background: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #f97316; border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem;">
+				<div style="display: flex; align-items: flex-start; gap: 10px;">
+					<i class="bi bi-shield-lock-fill" style="color: #f97316; font-size: 1.2rem; margin-top: 2px; flex-shrink: 0;"></i>
+					<div>
+						<p style="font-weight: 700; color: #9a3412; margin-bottom: 4px; font-size: 0.9rem;">Pré-requisito obrigatório na RouterBoard</p>
+						<p style="font-size: 0.85rem; color: #7c3a1e; line-height: 1.6; margin-bottom: 8px;">
+							Para o OTP funcionar, a RouterBoard precisa estar configurada com o <strong>usuário <code>mkauth</code></strong> e a <strong>chave SSH do MK-Auth importada</strong>. Sem isso, a conexão SSH será recusada e o provisionamento automático falhará.
+						</p>
+						<a href="https://mk-auth.com.br/page/configurar-ssh" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; background: #f97316; color: #ffffff; font-size: 0.82rem; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-decoration: none;">
+							<i class="bi bi-box-arrow-up-right"></i> Ver documentação oficial de configuração SSH
+						</a>
+					</div>
+				</div>
+			</div>
+			
+			<h4 class="title is-6 mb-2" style="color: #1e293b;">Como o sistema sabe qual IP acessar?</h4>
+			<div class="content is-small">
+				<ul>
+					<li>
+						<strong>Modo Em Produção:</strong> Para a mágica funcionar, o ramal precisa ter os dados validados: <strong class="has-text-info">IP Fallback</strong> (ou IP do MK), <strong>Senha</strong> e/ou <a href="https://mk-auth.com.br/page/configurar-ssh" target="_blank" style="color: #2563eb; text-decoration: underline;">chave SSH</a>.
+					</li>
+					<li>
+						<strong>Modo Em Paralelo:</strong> A mágica utilizará o túnel antigo (PPTP, OVPN) já existente para acessar a RB. Caso falhe, utilizará o IP Fallback como último recurso.
+					</li>
+				</ul>
+			</div>
+
+			<div class="notification is-info is-light mt-4" style="padding: 1rem;">
+				<div style="display: flex; align-items: flex-start; gap: 10px;">
+					<i class="bi bi-lightbulb-fill is-size-5" style="color: #0ea5e9;"></i>
+					<span style="font-size: 0.9rem;">
+						Dica: Sempre utilize o botão <strong>"Testar SSH em Lote"</strong> antes de provisionar. Se a coluna <em>Validação OTP</em> ficar verde, o OTP funcionará perfeitamente!
+					</span>
+				</div>
+			</div>
+		</section>
+		<footer class="modal-card-foot" style="justify-content: flex-end; background-color: #f8fafc; border-top: 1px solid #e2e8f0;">
+			<button class="button is-info" onclick="fecharModalInfoOtp()" type="button">Entendi</button>
+		</footer>
+	</div>
+</div>

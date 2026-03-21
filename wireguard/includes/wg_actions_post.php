@@ -221,6 +221,27 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         exit;
     }
+    // =========================================================================
+    // CHECK TUNNEL UNITÁRIO (Ping Assíncrono para o JS)
+    // =========================================================================
+    if ($acao === 'check_tunnel_unitario') {
+        header('Content-Type: application/json');
+        
+        $target_ip = trim($_POST['target_ip'] ?? '');
+        if (empty($target_ip)) {
+            echo json_encode(['ok' => false, 'error' => 'IP não fornecido']);
+            exit;
+        }
+
+        // Bate no Daemon Go
+        $resp = wg_call([
+            'action' => 'check-tunnel',
+            'target_ip' => $target_ip
+        ], '/run/wgmkauth.sock');
+
+        echo json_encode($resp);
+        exit;
+    }
 
     // ------------------------------------------------------------------
     // salvar_nat: Configura o IP Global e atualiza os .conf

@@ -206,8 +206,7 @@
 						?>
 
 						<!-- 🎯 ÂNCORA 1: TR recebe a classe 'peer-desativado' automaticamente -->
-						<tr class="<?php echo $classe_linha; ?>" data-pubkey="<?php echo htmlspecialchars($pub); ?>">
-							
+						<tr class="<?php echo $classe_linha; ?>" data-pubkey="<?php echo htmlspecialchars($pub); ?>" data-wg-ip="<?php echo htmlspecialchars($ip_wg_limpo); ?>">
 							<td class="is-vcentered">
 								<?php if ($linha): ?>
 									<input type="checkbox" name="peer_ids[]" value="<?php echo (int)$linha['id']; ?>" class="peer-checkbox" data-id_nas="<?php echo (int)$linha['id_nas']; ?>" data-nome="<?php echo htmlspecialchars($linha['peer_name']); ?>">
@@ -315,9 +314,9 @@
 									<a href="#" onclick="abrirRscModal(<?php echo (int)$linha['id']; ?>); return false;" style="padding: 0.2rem 0.4rem; color: #0ea5e9; background: #f0f9ff; display: flex; align-items: center;" title="Ver Script Inteligente"><i class="bi-files"></i></a>
 								</div>
 
-									<!-- 2. BOTÃO GATILHO DO SUSTO -->
-									<button type="button" id="btn_nativas_<?php echo (int)$linha['id']; ?>" class="button is-small is-warning is-light wg-btn-perigo" style="border-radius: 6px; font-weight: bold; border: 1px solid #fcd34d; height: 26px; padding: 0 8px; vertical-align: bottom; margin-right: 0.25rem;" onclick="revelarPerigo(<?php echo (int)$linha['id']; ?>)" title="Mostrar funções nativas">
-										⚠️ WG Import
+									<!-- 2. BOTÃO GATILHO DO SUSTO (Refinado) -->
+									<button type="button" id="btn_nativas_<?php echo (int)$linha['id']; ?>" class="button is-small wg-btn-perigo" style="background-color: #fffbeb; color: #b45309; border: 1px solid #fde68a; border-radius: 6px; font-weight: 600; font-size: 0.75rem; height: 26px; padding: 0 8px; margin-right: 0.25rem; transition: all 0.2s;" onclick="revelarPerigo(<?php echo (int)$linha['id']; ?>)" title="Mostrar funções nativas" onmouseover="this.style.backgroundColor='#fef3c7'; this.style.borderColor='#fcd34d';" onmouseout="this.style.backgroundColor='#fffbeb'; this.style.borderColor='#fde68a';">
+										<i class="bi bi-exclamation-triangle-fill mr-1" style="color: #f59e0b;"></i> WG Import
 									</button>
 
 								<!-- 3. CONTAINER ESCONDIDO DOS BOTÕES PERIGOSOS (.conf e wg-string) -->

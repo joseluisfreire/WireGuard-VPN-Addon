@@ -633,6 +633,22 @@ function formatarDataHandshakeJS(timestamp) {
 // --- VARIÁVEIS DO FAST-DETECT ---
 let historicoPeers = {}; 
 const TEMPO_LIMITE_RX_SEGUNDOS = 35; // Se o RX não subir por 35 segundos, marca como Offline
+// 🤫 MÁGICA: Função para mostrar/esconder o ping ao clicar na Tag Online
+window.togglePingJS = function(pubKey) {
+    if (historicoPeers[pubKey]) {
+        // Inverte o estado (Se tava escondido, mostra. Se tava mostrando, esconde)
+        historicoPeers[pubKey].showPing = !historicoPeers[pubKey].showPing;
+        
+        // Atualiza a tela na mesma hora, sem esperar o Radar dar a volta!
+        let row = document.querySelector(`.wg-peer-row[data-pubkey="${pubKey}"]`);
+        if (row) {
+            let pingSpan = row.querySelector('.wg-ping-span');
+            if (pingSpan) {
+                pingSpan.style.display = historicoPeers[pubKey].showPing ? 'inline-block' : 'none';
+            }
+        }
+    }
+};
 
 // Inicia o Radar a cada 5 segundos
 setInterval(function() {
@@ -705,30 +721,76 @@ setInterval(function() {
                         }
                     }
 
-                    // 3. Atualiza Status e Handshake Inteligente
+                    // 3. Atualiza Status, Handshake e CHECK-TUNNEL (Ping Assíncrono)
                     if(cellStatus && cellHandshake) {
-                        // Verifica se o admin desligou o peer. Se sim, não altera o status.
                         let isDisabled = cellStatus.getAttribute('data-disabled') === '1';
                         let isMaquete = cellStatus.getAttribute('data-is-maquete') === '1';
+                        let ipLimpo = row.getAttribute('data-wg-ip'); // Pega o IP limpo do HTML
                         
                         if (!isDisabled) {
                             let horaFormatada = formatarDataHandshakeJS(liveData.handshake);
                             
-                            // 🚀 Mudamos "liveData.online" para "isRealmenteOnline"
                             if(isRealmenteOnline) { 
-                                // MODO ONLINE (Verde ou Roxo)
-                                if(isMaquete) {
-                                    cellStatus.innerHTML = `<span class="tag wg-btn-status status-online-glow" title="Em Paralelo: IP do ramal ainda não foi efetivado." style="background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; font-weight: 600;"><i class="bi bi-diagram-2-fill mr-1"></i> Online (Paralelo)</span>`;
-                                } else {
-                                    cellStatus.innerHTML = `<span class="tag wg-btn-status status-online-glow" title="IP Oficial: Túnel principal operacional." style="background-color: #dcfce7; color: #166534; border: 1px solid #86efac; font-weight: 600;"><i class="bi bi-diagram-2-fill mr-1"></i> Online (Oficial)</span>`;
-                                }
+                                // --- O CLIENTE PARECE ONLINE. VAMOS TIRAR A PROVA REAL! ---
                                 
-                                cellHandshake.innerHTML = `
-                                    <i class="fa fa-handshake-o mr-1" style="color: #0ea5e9; font-size: 0.95rem;" title="Handshake estabelecido"></i>
-                                    <span style="color:#0f172a; font-weight: 500;">${horaFormatada}</span>
-                                    <i class="bi bi-activity wg-icon-handshake icon-online ml-2" title="Túnel Ativo e Comunicando!"></i>`;
+                                if (!memoria.ultimoPingTs) memoria.ultimoPingTs = 0;
+                                if (!memoria.statusRota) memoria.statusRota = 'HEALTHY';
+                                if (typeof memoria.showPing === 'undefined') memoria.showPing = false; // Começa escondido
+                                
+                                // Dispara o ping a cada 10 segundos silenciosamente
+                                if (agora - memoria.ultimoPingTs > 10000) {
+                                    memoria.ultimoPingTs = agora;
+                                    
+                                    let formPing = new FormData();
+                                    formPing.append('acao', 'check_tunnel_unitario');
+                                    formPing.append('target_ip', ipLimpo);
+                                    
+                                    fetch(window.location.href, { method: 'POST', body: formPing })
+                                        .then(r => r.json())
+                                        .then(pingData => {
+                                            if (pingData.ok && pingData.data) {
+                                                memoria.statusRota = pingData.data.status_code;
+                                                memoria.latencia = pingData.data.latency;
+                                            }
+                                        }).catch(() => {});
+                                }
+
+                                // --- RENDERIZAÇÃO BASEADA NO PING ---
+                                if (memoria.statusRota === 'ROUTING_FAULT') {
+                                    // 🔴 FALSO ONLINE CAÇADO! (Usando as cores pastéis harmonizadas)
+                                    cellStatus.innerHTML = `<span class="tag wg-btn-status" title="IP incorreto na RB! As chaves batem, mas o Ping falhou." style="background-color: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; font-weight: bold;"><i class="bi bi-x-octagon-fill mr-1"></i> Erro de Rota</span>`;
+                                    
+                                    cellHandshake.innerHTML = `
+                                        <i class="fa fa-handshake-o mr-1" style="color: #0ea5e9; font-size: 0.95rem;"></i>
+                                        <span style="color:#0f172a; text-decoration: line-through;">${horaFormatada}</span>
+                                        <i class="bi bi-sign-stop-fill ml-2" style="color: #ef4444;" title="Rota Quebrada"></i>`;
+                                } else {
+                                    // 🟢 VERDADEIRO ONLINE (Ping OK)
+                                    
+                                    // 🎨 CORREÇÃO DAS CORES: Usa opacidade herdeira, sem estragar sua paleta!
+                                    let displayPing = memoria.showPing ? 'inline' : 'none';
+                                    let latenciaBadge = memoria.latencia ? `<span class="wg-ping-span" style="display: ${displayPing}; opacity: 0.75; font-size: 0.85em; margin-left: 4px;">(${memoria.latencia})</span>` : '';
+                                    
+                                    // Transforma a tag inteira em um botão clicável (SEM DUPLICAR O STYLE!)
+                                    let onClick = `onclick="window.togglePingJS('${pubKey}')"`;
+                                    let tituloHover = "Túnel OK. Clique para mostrar/ocultar a Latência";
+
+                                    if(isMaquete) {
+                                        cellStatus.innerHTML = `<span class="tag wg-btn-status status-online-glow" title="${tituloHover}" ${onClick} style="cursor: pointer; user-select: none; background-color: #f3e8ff; color: #7e22ce; border: 1px solid #d8b4fe; font-weight: 600;"><i class="bi bi-diagram-2-fill mr-1"></i> Online (Paralelo)${latenciaBadge}</span>`;
+                                    } else {
+                                        cellStatus.innerHTML = `<span class="tag wg-btn-status status-online-glow" title="${tituloHover}" ${onClick} style="cursor: pointer; user-select: none; background-color: #dcfce7; color: #166534; border: 1px solid #86efac; font-weight: 600;"><i class="bi bi-diagram-2-fill mr-1"></i> Online (Oficial)${latenciaBadge}</span>`;
+                                    }
+                                    
+                                    cellHandshake.innerHTML = `
+                                        <i class="fa fa-handshake-o mr-1" style="color: #0ea5e9; font-size: 0.95rem;" title="Handshake estabelecido"></i>
+                                        <span style="color:#0f172a; font-weight: 500;">${horaFormatada}</span>
+                                        <i class="bi bi-activity wg-icon-handshake icon-online ml-2" title="Túnel Ativo e Comunicando!"></i>`;
+                                }
+
                             } else {
-                                // MODO OFFLINE (Laranja)
+                                // MODO OFFLINE RAIZ (Sem Handshake)
+                                memoria.statusRota = null; // Reseta o estado do ping
+                                
                                 if(isMaquete) {
                                     cellStatus.innerHTML = `<span class="tag is-warning wg-btn-status" style="background-color: #ffedd5; color: #9a3412; border: 1px solid #fdba74; font-weight: 600;"><i class="bi bi-exclamation-triangle-fill mr-1"></i> Offline (Paralelo)</span>`;
                                 } else {
@@ -824,7 +886,7 @@ function revelarPerigo(id_peer) {
     }
 }
 // ==============================================================
-// MODAL DE INFORMAÇÕES DO OTP (Aba Provisionar)
+// MODAL DE INFORMAÇÕES DO OTP 
 // ==============================================================
 function abrirModalInfoOtp() {
     var modal = document.getElementById('modal_info_otp');

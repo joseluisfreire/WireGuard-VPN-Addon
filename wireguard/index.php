@@ -17,6 +17,9 @@ unset($_SESSION['wg_msg_sucesso']);
 $msg_erro = $_SESSION['wg_msg_erro'] ?? '';
 unset($_SESSION['wg_msg_erro']);
 
+// Verifica se o status do Root NÃO é 'vermelho' (Ou seja, ele fez o login)
+$is_root = (isset($_SESSION['MKA_LoginRoot']) && $_SESSION['MKA_LoginRoot'] !== 'vermelho');
+
 // ----------------------------------------------------------------------------------------------
 // Configurações básicas
 // ----------------------------------------------------------------------------------------------
@@ -321,29 +324,38 @@ if (!$erro_db) {
 </nav>
 
 <div class="content">
-<!-- CABEÇALHO WIREGUARD VPN COMPACTO -->
-<div class="mb-4" style="margin-top: -10px;">
-    <!-- Colocamos TUDO dentro do h1 com display: flex -->
-    <h1 class="title is-4 mb-0" style="font-weight: 800; color: #0f172a; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px;">
+    <!-- CABEÇALHO WIREGUARD VPN COMPACTO -->
+    <div class="mb-4" style="margin-top: -10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         
-        <!-- Logo SVG Oficial -->
-        <img src="WireGuard_logo.svg" 
-             alt="Logo WireGuard" 
-             style="width: 36px; height: 36px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.15)); margin-top: -2px;">
-        
-        WIREGUARD VPN
-        
-        <!-- O SEU botão (i) original mantendo a lógica de abrir o Popup -->
-        <a href="#"
-           onclick="document.getElementById('about-wg-popup').classList.add('is-active'); return false;"
-           title="Sobre o Addon WireGuard"
-           style="color: #94a3b8; transition: color 0.2s ease; margin-top: 2px;">
-          <span class="icon is-small hover-ciano">
-            <i class="bi bi-info-circle"></i>
-          </span>
-        </a>
-    </h1>
-</div>
+        <!-- Colocamos TUDO dentro do h1 com display: flex -->
+        <h1 class="title is-4 mb-0" style="font-weight: 800; color: #0f172a; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px;">
+            <!-- Logo SVG Oficial -->
+            <img src="WireGuard_logo.svg" alt="Logo WireGuard" style="width: 36px; height: 36px; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.15)); margin-top: -2px;">
+            WIREGUARD VPN
+            <!-- O SEU botão (i) original -->
+            <a href="#" onclick="document.getElementById('about-wg-popup').classList.add('is-active'); return false;" title="Sobre o Addon WireGuard" style="color: #94a3b8; transition: color 0.2s ease; margin-top: 2px;">
+              <span class="icon is-small hover-ciano"><i class="bi bi-info-circle"></i></span>
+            </a>
+        </h1>
+
+        <!-- BOTÃO DE STATUS DO ROOT -->
+        <div>
+		<?php if (!$is_root): ?>
+			<!-- Botão vermelho chamando o popup JS -->
+			<a href="#" onclick="abrirLoginRoot(); return false;" class="button is-danger is-small" style="border-radius: 6px; font-weight: bold; box-shadow: 0 4px 6px rgba(220, 38, 38, 0.2);">
+				<span class="icon"><i class="bi bi-lock-fill"></i></span>
+				<span>Modo Leitura (Desbloquear)</span>
+			</a>
+            <?php else: ?>
+                <!-- Indicador verde de root ativo -->
+                <div class="tags has-addons mb-0">
+                    <span class="tag is-dark is-medium"><i class="bi bi-shield-check" style="color: #4ade80;"></i></span>
+                    <span class="tag is-success is-light is-medium" style="font-weight: bold;">Root Ativo</span>
+                </div>
+            <?php endif; ?>
+        </div>
+
+    </div>
 
 	<?php if ($erro_db): ?>
 		<div class="notification is-danger">
@@ -388,12 +400,60 @@ if (!$erro_db) {
 <?php include('../../baixo.php'); ?>
 <!-- DADOS EXPORTADOS PARA O WG_ADDON.JS -->
 <script>
-    window.wgIpConfig = {
-        usedIps: <?php echo isset($js_used_ips) ? $js_used_ips : '[]'; ?>,
-        netIp: <?php echo isset($js_net_ip) ? $js_net_ip : '""'; ?>,
-        mask: <?php echo isset($js_mask_int) ? $js_mask_int : '0'; ?>,
-        seqIp: "<?php echo isset($sugestao_ip_seq) ? $sugestao_ip_seq : ''; ?>"
-    };
+	window.wgIpConfig = {
+		usedIps: <?php echo isset($js_used_ips) ? $js_used_ips : '[]'; ?>,
+		netIp: <?php echo isset($js_net_ip) ? $js_net_ip : '""'; ?>,
+		mask: <?php echo isset($js_mask_int) ? $js_mask_int : '0'; ?>,
+		seqIp: "<?php echo isset($sugestao_ip_seq) ? $sugestao_ip_seq : ''; ?>"
+	};
+
+	// Injetando o Status do Root no JS
+	window.isRoot = <?php echo $is_root ? 'true' : 'false'; ?>;
+
+	// FUNÇÃO PARA ABRIR O POP-UP NATIVO DO MK-AUTH
+	function abrirLoginRoot() {
+		var width = 450;
+		var height = 350;
+		var left = (window.screen.width / 2) - (width / 2);
+		var top = (window.screen.height / 2) - (height / 2);
+		
+		// Abre a telinha vermelha num popup pequeno
+		var popup = window.open('/admin/login_root.hhvm', 'MKAuthRootLogin', 'width=' + width + ',height=' + height + ',top=' + top + ',left=' + left + ',resizable=no,scrollbars=no,status=no,toolbar=no,menubar=no');
+		
+		// "Espião" que fica checando se o usuário fechou o popup (no "X")
+		var checkPopup = setInterval(function() {
+			if (!popup || popup.closed || popup.closed === undefined) {
+				clearInterval(checkPopup);
+				// Quando o popup fecha, recarrega a página automaticamente pra aplicar o verde!
+				window.location.reload();
+			}
+		}, 500);
+	}
+
+	// FUNÇÃO GLOBAL DE BARREIRA (SWEETALERT)
+	function verificarRoot(event, nomeDaAcao) {
+		if (!window.isRoot) {
+			if (event) event.preventDefault(); // Trava o clique/submit na hora
+			
+			Swal.fire({
+				icon: 'warning',
+				title: 'Acesso Restrito',
+				html: `Você está no <b>Modo Leitura</b>.<br>É necessário privilégio de Root para <b>${nomeDaAcao}</b>.`,
+				showCancelButton: true,
+				confirmButtonText: '<i class="bi bi-unlock-fill"></i> Fazer Login Root',
+				cancelButtonText: 'Cancelar',
+				confirmButtonColor: '#dc2626',
+				cancelButtonColor: '#64748b'
+			}).then((result) => {
+				if (result.isConfirmed) {
+					// Chama a nossa nova função de Pop-up
+					abrirLoginRoot();
+				}
+			});
+			return false; // Retorna falso pra garantir que a função chamadora aborte
+		}
+		return true; // Se for root, deixa passar!
+	}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="../../menu.js.hhvm"></script>

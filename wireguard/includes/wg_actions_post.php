@@ -1,12 +1,45 @@
 <?php
+// Garante que a sessão tá rodando
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // =========================================================================
 // BLOCO PRINCIPAL DE AÇÕES POST
 // =========================================================================
 if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $acao = isset($_POST['acao']) ? trim($_POST['acao']) : '';
+    
+    // --- TRAVA DE SEGURANÇA BACKEND (BLINDAGEM) ---
+    // Ações permitidas no Modo Leitura (não exigem senha de root)
+	$acoes_leitura = [
+		'get_live_stats', 
+		'check_tunnel_unitario', 
+		'download_snapshot', 
+		'show_conf', 
+		'show_rsc', 
+		'show_wgstring'
+	];
+
+    // Se a ação NÃO estiver na lista de leitura E o usuário NÃO tiver o root verde, bloqueia!
+    if (!in_array($acao, $acoes_leitura) && (!isset($_SESSION['MKA_LoginRoot']) || $_SESSION['MKA_LoginRoot'] === 'vermelho')) {
+        
+        // Se a requisição bloqueada esperava um JSON (AJAX), devolve um erro em JSON para não quebrar o JS
+        if (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'error' => 'Acesso Negado! Login de root necessário.']);
+            exit;
+        }
+
+        // Se for uma requisição normal (formulário), redireciona com a mensagem vermelha
+        $_SESSION['wg_msg_erro'] = "Acesso Negado pelo Servidor! É necessário fazer o Login de Root.";
+        header("Location: ?tab=status"); 
+        exit;
+    }
+    // ----------------------------------------------
+
     $msg_erro = '';
-	
+    
     file_put_contents(
         '/tmp/wg_flow.log',
         date('c') . " POST ACAO={$acao} RAW=" . http_build_query($_POST) . "\n",
@@ -312,6 +345,44 @@ if (!$erro_db && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['wg_msg_sucesso'] = "✅ IP Público fixado para: {$ip_nat}. Arquivos .conf atualizados com sucesso!";
         }
         header('Location: ?tab=status');
+        exit;
+    }
+    // =========================================================================
+    // MODAIS DE VISUALIZAÇÃO (.conf, .rsc, wgimport string)
+    // =========================================================================
+    if (in_array($acao, ['show_conf', 'show_rsc', 'show_wgstring'])) {
+        $id = isset($_POST['id_peer']) ? (int)$_POST['id_peer'] : 0;
+    
+        if ($id > 0) {
+            $stmt = $mysqli->prepare("SELECT peer_name, config_text, id_nas, ip_wg FROM wg_ramais WHERE id = ? LIMIT 1");
+            if ($stmt) {
+                $stmt->bind_param('i', $id);
+                $stmt->execute();
+                $stmt->bind_result($peer_name, $config_text, $id_nas, $ip_wg);
+    
+                if ($stmt->fetch() && $config_text !== null && $config_text !== '') {
+                    $safe_name = preg_replace('/[^a-zA-Z0-9_-]+/', '_', $peer_name) ?: 'peer';
+    
+                    if ($acao === 'show_conf') {
+                        $_SESSION['wg_last_conf'] = $config_text;
+    
+                    } elseif ($acao === 'show_wgstring') {
+                        // Certifique-se de que a função normalizar_conf_para_wg_import está acessível aqui
+                        $wg_string_cmd = normalizar_conf_para_wg_import($config_text);
+                        $wg_string_cmd .= "\n\n# ATENÇÃO: após importar, crie a rota estática para o servidor\n";
+                        $wg_string_cmd .= "# /ip route add dst-address=<SERVER_IP>/32 gateway=<WG_INTERFACE>\n";
+                        $_SESSION['wg_last_wgstring'] = $wg_string_cmd;
+    
+                    } elseif ($acao === 'show_rsc') {
+                        $_SESSION['wg_last_rsc'] = wg_gerar_script_mikrotik($config_text, (int)$id_nas, (int)$id, $safe_name);
+                    }
+                }
+                $stmt->close();
+            }
+        }
+    
+        // Sempre volta pra aba peers após preencher a sessão do modal
+        header('Location: ?tab=peers');
         exit;
     }
 

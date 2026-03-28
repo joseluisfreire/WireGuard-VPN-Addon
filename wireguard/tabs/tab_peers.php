@@ -58,17 +58,17 @@
 
 		<!-- Modais invisíveis -->
 		<form method="post" action="?tab=peers" id="form_modal_conf" style="display:none;">
-		  <input type="hidden" name="acao_modal" value="show_conf">
+		  <input type="hidden" name="acao" value="show_conf">
 		  <input type="hidden" name="id_peer" id="modal_conf_id" value="">
 		</form>
 
 		<form method="post" action="?tab=peers" id="form_modal_rsc" style="display:none;">
-		  <input type="hidden" name="acao_modal" value="show_rsc">
+		  <input type="hidden" name="acao" value="show_rsc">
 		  <input type="hidden" name="id_peer" id="modal_rsc_id" value="">
 		</form>
 
 		<form method="post" action="?tab=peers" id="form_modal_wgstring" style="display:none;">
-		  <input type="hidden" name="acao_modal" value="show_wgstring">
+		  <input type="hidden" name="acao" value="show_wgstring">
 		  <input type="hidden" name="id_peer" id="modal_wgstring_id" value="">
 		</form>
 		<?php
